@@ -1,35 +1,24 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ScoreEvent } from '../database/score-event.entity';
 import type { RequestUser } from '../common/request-user';
-
-export type ScoreEvent = {
-  id: string;
-  userId: string;
-  action: string;
-  points: number;
-  createdAt: string;
-};
 
 @Injectable()
 export class ScoreService {
-  private readonly events: ScoreEvent[] = [];
+  constructor(
+    @InjectRepository(ScoreEvent)
+    private readonly scoreRepo: Repository<ScoreEvent>,
+  ) {}
 
-  summaryFor(user: RequestUser) {
-    const events = this.events.filter((event) => event.userId === user.id);
+  async summaryFor(user: RequestUser) {
+    const events = await this.scoreRepo.find({
+      where: { userId: user.id },
+      order: { createdAt: 'DESC' },
+    });
     return {
-      total: events.reduce((sum, event) => sum + event.points, 0),
-      events: events.map(({ userId: _userId, ...event }) => event),
+      total: events.reduce((sum, e) => sum + e.points, 0),
+      events: events.map(({ userId: _u, ...e }) => e),
     };
-  }
-
-  award(user: RequestUser, action: string, points: number) {
-    const event: ScoreEvent = {
-      id: `score_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-      userId: user.id,
-      action,
-      points,
-      createdAt: new Date().toISOString(),
-    };
-    this.events.unshift(event);
-    return event;
   }
 }
