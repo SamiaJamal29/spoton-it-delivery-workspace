@@ -140,7 +140,7 @@ export default function ReadinessPage() {
               </div>
 
               {/* Chevron */}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" flexShrink="0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
                 <path d="M9 18l6-6-6-6" />
               </svg>
             </div>
