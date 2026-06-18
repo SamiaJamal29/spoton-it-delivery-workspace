@@ -46,7 +46,7 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
   return (
     <div className="workspace">
       <div className="form-page-header">
-        <h1 className="workspace-title">{mode === 'create' ? 'New Task' : 'Edit Task'}</h1>
+        <h1 className="workspace-title">{mode === 'create' ? 'New Work Item' : 'Edit Work Item'}</h1>
       </div>
 
       {error && <div className="workspace-error">{error}</div>}
@@ -105,7 +105,7 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
 
         <div className="form-actions">
           <button className="btn btn-primary" onClick={submit} disabled={submitting}>
-            {submitting ? 'Saving…' : mode === 'create' ? 'Create Task' : 'Save Changes'}
+            {submitting ? 'Saving…' : mode === 'create' ? 'Create Work Item' : 'Save Changes'}
           </button>
           <button className="btn" onClick={() => router.back()}>Cancel</button>
         </div>

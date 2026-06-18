@@ -95,7 +95,7 @@ function WorkItemsInner() {
     <div className="workspace">
       <div className="workspace-header">
         <div>
-          <h1 className="workspace-title">Tasks{projectFilter ? ` · ${projectFilter}` : ''}</h1>
+          <h1 className="workspace-title">Work Items{projectFilter ? ` · ${projectFilter}` : ''}</h1>
           <p className="workspace-subtitle">{items.length} tasks</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

@@ -142,7 +142,7 @@ export default function ItWorkspacePage() {
   const deleteTask = async (e: React.MouseEvent, id: string, title: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(`Delete task "${title}"?`)) return;
+    if (!confirm(`Delete work item "${title}"?`)) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
     await api.workItems.delete(id);
   };
@@ -182,7 +182,7 @@ export default function ItWorkspacePage() {
       setQuickTitle('');
       setAddingTo(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to create task');
+      alert(err instanceof Error ? err.message : 'Failed to create work item');
     } finally {
       setQuickSaving(false);
     }
@@ -203,7 +203,7 @@ export default function ItWorkspacePage() {
       <div className="workspace-header">
         <div>
           <h1 className="workspace-title">IT Delivery Workspace</h1>
-          <p className="workspace-subtitle">{items.length} tasks · drag cards between columns</p>
+          <p className="workspace-subtitle">{items.length} work items · drag cards between columns</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-outline" onClick={() => setShowAddCol(!showAddCol)}>+ Column</button>
@@ -323,7 +323,7 @@ export default function ItWorkspacePage() {
                     </div>
                   </div>
                 ) : (
-                  <button className="quick-add-btn" onClick={() => setAddingTo(col.key)}>+ Add task</button>
+                  <button className="quick-add-btn" onClick={() => setAddingTo(col.key)}>+ Add work item</button>
                 )}
               </div>
             </div>

@@ -97,7 +97,7 @@ export default function DashboardPage() {
 
   // Analytics data
   const kpis = [
-    { label: 'Total Tasks', value: items.length, sub: 'across all stages', color: 'var(--accent)' },
+    { label: 'Total Work Items', value: items.length, sub: 'across all stages', color: 'var(--accent)' },
     { label: 'In Progress', value: items.filter(i => i.status === 'in_progress').length, sub: 'being worked on', color: 'var(--s-progress)' },
     { label: 'Pending QA', value: items.filter(i => i.status === 'qa').length, sub: 'need testing', color: 'var(--s-qa)' },
     { label: 'Ready to Ship', value: items.filter(i => i.status === 'ready_for_release').length, sub: 'waiting for release', color: 'var(--s-ready)' },
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       <div className="dashboard-header">
         <div>
           <div className="dashboard-greeting">{greeting()}, {firstName} 👋</div>
-          <div className="dashboard-sub">{today} · {openCount} open tasks across the pipeline</div>
+          <div className="dashboard-sub">{today} · {openCount} open work items across the pipeline</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <div style={{ display: 'flex', background: 'var(--surface-3)', borderRadius: 10, padding: 3, gap: 2 }}>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                   <span className="kanban-col-count" style={{ background: col.color }}>{colItems.length}</span>
                 </div>
                 <div className="kanban-cards">
-                  {colItems.length === 0 && <div className="kanban-empty">No tasks</div>}
+                  {colItems.length === 0 && <div className="kanban-empty">No work items</div>}
                   {colItems.map(item => {
                     const passed = item.qaChecks?.filter(q => q.status === 'passed').length ?? 0;
                     const totalQa = item.qaChecks?.length ?? 0;
