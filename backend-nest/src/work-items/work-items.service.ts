@@ -50,7 +50,7 @@ export class WorkItemsService {
   async create(dto: CreateWorkItemDto, user: RequestUser) {
     const item = this.workItemRepo.create({
       ...dto,
-      status: 'backlog',
+      status: dto.status ?? 'backlog',
       createdBy: user.id,
     });
     const saved = await this.workItemRepo.save(item);
