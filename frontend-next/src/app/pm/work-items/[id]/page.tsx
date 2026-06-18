@@ -101,7 +101,7 @@ export default function WorkItemDetailPage() {
   return (
     <div className="workspace">
       <div className="detail-nav">
-        <Link href="/pm/work-items" className="back-link">← Work Items</Link>
+        <Link href="/pm/work-items" className="back-link">← Tasks</Link>
         <div className="detail-nav-actions">
           <Link href={`/pm/work-items/${id}/edit`} className="btn btn-sm">Edit</Link>
           <button className="btn btn-sm btn-danger" onClick={deleteItem}>Delete</button>

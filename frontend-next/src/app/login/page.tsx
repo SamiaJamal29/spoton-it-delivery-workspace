@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { api, saveToken } from '@/lib/api';
 
 export default function LoginPage() {
@@ -54,6 +55,10 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <div style={{ marginTop: 18, textAlign: 'center', fontSize: 13, color: 'var(--text-3)' }}>
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" style={{ color: 'var(--accent)', fontWeight: 700 }}>Sign up</Link>
+        </div>
       </div>
     </div>
   );

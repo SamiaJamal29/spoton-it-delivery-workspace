@@ -31,8 +31,8 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
     setError('');
     try {
       if (mode === 'create') {
-        const item = await api.workItems.create(form);
-        router.push(`/pm/work-items/${item.id}`);
+        await api.workItems.create(form);
+        router.push('/pm/dashboard');
       } else {
         await api.workItems.update(id!, form);
         router.push(`/pm/work-items/${id}`);
@@ -46,7 +46,7 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
   return (
     <div className="workspace">
       <div className="form-page-header">
-        <h1 className="workspace-title">{mode === 'create' ? 'New Work Item' : 'Edit Work Item'}</h1>
+        <h1 className="workspace-title">{mode === 'create' ? 'New Task' : 'Edit Task'}</h1>
       </div>
 
       {error && <div className="workspace-error">{error}</div>}
@@ -87,7 +87,14 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
         <div className="form-row">
           <div className="form-group">
             <label className="form-label">Assignee</label>
-            <input className="form-input" value={form.assignee} onChange={(e) => set('assignee', e.target.value)} placeholder="Person responsible" />
+            <select className="form-select" value={form.assignee} onChange={(e) => set('assignee', e.target.value)}>
+              <option value="">Unassigned</option>
+              <option value="Maya Hassan">Maya Hassan</option>
+              <option value="Lina Farouk">Lina Farouk</option>
+              <option value="Omar Ahmed">Omar Ahmed</option>
+              <option value="Sara Khalil">Sara Khalil</option>
+              <option value="Ahmed Mostafa">Ahmed Mostafa</option>
+            </select>
           </div>
 
           <div className="form-group">
@@ -98,7 +105,7 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
 
         <div className="form-actions">
           <button className="btn btn-primary" onClick={submit} disabled={submitting}>
-            {submitting ? 'Saving…' : mode === 'create' ? 'Create Work Item' : 'Save Changes'}
+            {submitting ? 'Saving…' : mode === 'create' ? 'Create Task' : 'Save Changes'}
           </button>
           <button className="btn" onClick={() => router.back()}>Cancel</button>
         </div>

@@ -9,8 +9,8 @@ const STATUS_LABEL: Record<string, string> = {
   qa: 'QA', ready_for_release: 'Ready', released: 'Released',
 };
 const STATUS_COLOR: Record<string, string> = {
-  backlog: 'var(--s-backlog)', planned: 'var(--s-planned)', in_progress: 'var(--s-progress)',
-  qa: 'var(--s-qa)', ready_for_release: 'var(--s-ready)', released: 'var(--s-released)',
+  backlog: '#94a3b8', planned: '#3b82f6', in_progress: '#6366f1',
+  qa: '#a855f7', ready_for_release: '#0d9488', released: '#16a34a',
 };
 
 function riskScore(item: WorkItem): number {
@@ -27,22 +27,21 @@ function riskScore(item: WorkItem): number {
 }
 
 function riskColor(score: number) {
-  if (score >= 60) return '#ef4444';
-  if (score >= 30) return '#f97316';
+  if (score >= 70) return '#ef4444';
+  if (score >= 40) return '#f97316';
   return '#10b981';
 }
 
 function riskLabel(score: number) {
-  if (score >= 60) return 'High';
-  if (score >= 30) return 'Medium';
-  return 'Low';
+  if (score >= 70) return 'HIGH RISK';
+  if (score >= 40) return 'MED RISK';
+  return 'LOW RISK';
 }
 
 export default function ReadinessPage() {
   const router = useRouter();
   const [items, setItems] = useState<WorkItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
 
   useEffect(() => {
     api.workItems.list()
@@ -53,50 +52,20 @@ export default function ReadinessPage() {
 
   const scored = items
     .map(i => ({ item: i, risk: riskScore(i) }))
-    .sort((a, b) => b.risk - a.risk)
-    .filter(({ risk }) => {
-      if (filter === 'high') return risk >= 60;
-      if (filter === 'medium') return risk >= 30 && risk < 60;
-      if (filter === 'low') return risk < 30;
-      return true;
-    });
+    .sort((a, b) => b.risk - a.risk);
 
-  const highCount = items.filter(i => riskScore(i) >= 60).length;
-  const medCount  = items.filter(i => { const r = riskScore(i); return r >= 30 && r < 60; }).length;
-  const lowCount  = items.filter(i => riskScore(i) < 30).length;
+  const openPanel = (id: string) => router.push(`/pm/readiness?panel=${id}`);
 
   return (
     <div style={{ maxWidth: 900, animation: 'fadeUp .3s ease' }}>
       <div className="page-header">
         <div>
-          <div className="page-title">Release Readiness</div>
-          <div className="page-sub">{items.length} active items · ranked by risk score</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div className="page-title">Release Readiness</div>
+            <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20, background: 'var(--accent-soft)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '.08em' }}>RISK ENGINE</span>
+          </div>
+          <div className="page-sub">Risk scored from priority, failing &amp; missing QA, overdue dates and ownership. Highest risk first — fix the blockers to clear each item for release.</div>
         </div>
-      </div>
-
-      {/* Risk summary strip */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        {[
-          { key: 'all',    label: 'All',    count: items.length, color: 'var(--accent)',   bg: 'var(--accent-soft)' },
-          { key: 'high',   label: 'High Risk',   count: highCount, color: '#ef4444', bg: '#fee2e2' },
-          { key: 'medium', label: 'Medium Risk',  count: medCount,  color: '#f97316', bg: '#fff7ed' },
-          { key: 'low',    label: 'Low Risk',     count: lowCount,  color: '#10b981', bg: '#ecfdf5' },
-        ].map(f => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key as typeof filter)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
-              borderRadius: 10, border: `1.5px solid ${filter === f.key ? f.color : 'var(--border)'}`,
-              background: filter === f.key ? f.bg : 'var(--surface)',
-              color: filter === f.key ? f.color : 'var(--text-2)',
-              fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .14s',
-            }}
-          >
-            <span style={{ fontWeight: 800, fontSize: 16 }}>{f.count}</span>
-            {f.label}
-          </button>
-        ))}
       </div>
 
       {loading && <div className="workspace-loading">Loading…</div>}
@@ -105,15 +74,17 @@ export default function ReadinessPage() {
         <div className="empty-state">
           <div style={{ fontSize: 40 }}>✅</div>
           <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>All clear!</div>
-          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>No items match this filter.</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 14 }}>No active items to assess.</div>
         </div>
       )}
 
-      <div className="readiness-grid">
+      <div style={{ display: 'grid', gap: 12 }}>
         {scored.map(({ item, risk }) => {
+          const rc = riskColor(risk);
+          const rl = riskLabel(risk);
+
           const failed  = item.qaChecks?.filter(q => q.status === 'failed').length ?? 0;
           const pending = item.qaChecks?.filter(q => q.status === 'pending').length ?? 0;
-          const passed  = item.qaChecks?.filter(q => q.status === 'passed').length ?? 0;
           const total   = item.qaChecks?.length ?? 0;
 
           const blockers: { label: string; color: string; bg: string }[] = [];
@@ -123,36 +94,55 @@ export default function ReadinessPage() {
           if (!item.assignee) blockers.push({ label: 'Unassigned', color: '#6b7280', bg: 'var(--surface-3)' });
           if (item.dueDate && new Date(item.dueDate) < new Date()) blockers.push({ label: 'Overdue', color: '#ef4444', bg: '#fee2e2' });
 
-          const rc = riskColor(risk);
+          const shortId = `WI-${item.id.slice(-6).toUpperCase()}`;
 
           return (
-            <div key={item.id} className="readiness-row" onClick={() => router.push(`/pm/work-items/${item.id}`)}>
-              <div className="risk-circle" style={{ background: `${rc}18`, color: rc }}>
-                <div className="risk-circle-num">{risk}</div>
-                <div className="risk-circle-label">{riskLabel(risk)}</div>
+            <div key={item.id}
+              onClick={() => openPanel(item.id)}
+              style={{
+                background: 'var(--surface)', borderRadius: 12, padding: '16px 18px',
+                display: 'flex', alignItems: 'center', gap: 16,
+                boxShadow: 'var(--shadow)', cursor: 'pointer',
+                borderLeft: `3px solid ${rc}`,
+                border: `1px solid var(--border)`,
+                borderLeftWidth: 3, borderLeftColor: rc,
+                transition: 'box-shadow .15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-lg)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow)')}
+            >
+              {/* Risk score */}
+              <div style={{ textAlign: 'center', flexShrink: 0, width: 56 }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: rc, lineHeight: 1 }}>{risk}</div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: rc, textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 2 }}>{rl}</div>
               </div>
 
-              <div className="readiness-info">
-                <div className="readiness-title">{item.title}</div>
-                <div className="readiness-blockers">
+              {/* Center info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: 'var(--text-3)' }}>{shortId}</span>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: STATUS_COLOR[item.status] + '22', color: STATUS_COLOR[item.status], whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    {STATUS_LABEL[item.status]}
+                  </span>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: 5, background: 'var(--surface-3)', borderRadius: 4, overflow: 'hidden', marginBottom: 6, maxWidth: 300 }}>
+                  <div style={{ height: '100%', borderRadius: 4, background: rc, width: `${risk}%`, transition: 'width .4s' }} />
+                </div>
+                {/* Blocker chips */}
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {blockers.map(b => (
                     <span key={b.label} className="blocker-chip" style={{ color: b.color, background: b.bg }}>{b.label}</span>
                   ))}
-                  {blockers.length === 0 && passed > 0 && (
-                    <span className="blocker-chip" style={{ color: '#10b981', background: '#ecfdf5' }}>✓ {passed}/{total} QA passed</span>
-                  )}
+                  {blockers.length === 0 && <span className="blocker-chip" style={{ color: '#16a34a', background: '#ecfdf5' }}>✓ Clear for release</span>}
                 </div>
               </div>
 
-              <div className="readiness-status">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: STATUS_COLOR[item.status], fontWeight: 700 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_COLOR[item.status], display: 'inline-block' }} />
-                  {STATUS_LABEL[item.status]}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
-                  {item.priority} priority
-                </div>
-              </div>
+              {/* Chevron */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" flexShrink="0">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
             </div>
           );
         })}

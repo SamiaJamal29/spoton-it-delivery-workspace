@@ -1,23 +1,32 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 import { api, clearToken } from '@/lib/api';
+import TaskPanel from '@/components/TaskPanel';
 
 type User = { id: string; name: string; email: string; role: string };
 
 const NAV = [
-  { href: '/pm/dashboard', label: 'Dashboard',  icon: 'M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z', badgeKey: '' },
-  { href: '/pm/work-items', label: 'Work Items', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', badgeKey: 'workItems' },
-  { href: '/pm/qa-checks', label: 'QA Checks',  icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', badgeKey: 'qaChecks' },
-  { href: '/pm/releases', label: 'Releases',    icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z', badgeKey: '' },
-  { href: '/pm/readiness', label: 'Readiness',  icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', badgeKey: 'readiness' },
-  { href: '/pm/score',    label: 'Score',       icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', badgeKey: '' },
+  { href: '/pm/dashboard',  label: 'Dashboard',  icon: 'M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z',                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       badgeKey: '' },
+  { href: '/pm/projects',   label: 'Projects',   icon: 'M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L10.707 6.7A1 1 0 0011.414 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    badgeKey: 'projects' },
+  { href: '/pm/work-items', label: 'Tasks',      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       badgeKey: 'workItems' },
+  { href: '/pm/qa-checks',  label: 'QA Checks',  icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',                                                                                                                                                                                                                                                                                                                                                                                                                                        badgeKey: 'qaChecks' },
+  { href: '/pm/releases',   label: 'Releases',   icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          badgeKey: '' },
+  { href: '/pm/readiness',  label: 'Readiness',  icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',                                                                                                                                                                                                                                                                                                                                                                                                                               badgeKey: 'readiness' },
+  { href: '/pm/score',      label: 'Score',      icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',                                                                                                                                                                                           badgeKey: '' },
 ];
 
 function initials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function PanelWrapper() {
+  const searchParams = useSearchParams();
+  const panelId = searchParams.get('panel');
+  if (!panelId) return null;
+  return <TaskPanel taskId={panelId} />;
 }
 
 export default function PmLayout({ children }: { children: React.ReactNode }) {
@@ -64,15 +73,17 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
     <div className="shell" data-theme={theme}>
       {/* ── Sidebar ── */}
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-logo">
-            <div className="sidebar-logo-dot" />
+        <Link href="/pm/dashboard" style={{ textDecoration: 'none' }}>
+          <div className="sidebar-brand">
+            <div className="sidebar-logo">
+              <div className="sidebar-logo-dot" />
+            </div>
+            <div className="sidebar-brand-text">
+              <div className="sidebar-brand-name">SpotOn</div>
+              <div className="sidebar-brand-sub">Delivery</div>
+            </div>
           </div>
-          <div className="sidebar-brand-text">
-            <div className="sidebar-brand-name">SpotOn</div>
-            <div className="sidebar-brand-sub">Delivery</div>
-          </div>
-        </div>
+        </Link>
 
         <nav className="sidebar-nav">
           {NAV.map((item) => {
@@ -112,7 +123,7 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
             </svg>
             <input
               className="topbar-search"
-              placeholder="Search work items…"
+              placeholder="Search tasks…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={handleSearch}
@@ -138,7 +149,7 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            New item
+            New Task
           </Link>
         </header>
 
@@ -146,6 +157,11 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </div>
+
+      {/* Task Panel */}
+      <Suspense fallback={null}>
+        <PanelWrapper />
+      </Suspense>
     </div>
   );
 }
