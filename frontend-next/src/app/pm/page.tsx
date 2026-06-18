@@ -1,5 +1,2 @@
 import { redirect } from 'next/navigation';
-
-export default function PmPage() {
-  redirect('/pm/it-workspace');
-}
+export default function PmPage() { redirect('/pm/dashboard'); }

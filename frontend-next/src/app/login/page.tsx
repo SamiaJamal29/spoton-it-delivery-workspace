@@ -18,7 +18,7 @@ export default function LoginPage() {
     try {
       const result = await api.login(email, password);
       saveToken(result.accessToken);
-      router.push('/pm/it-workspace');
+      router.push('/pm/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -27,24 +27,34 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="form">
-      <div>
-        <div className="eyebrow">SpotOn Project Engine</div>
-        <h1>Intern Challenge Login</h1>
-        <p>Use the seeded account to enter the assessment workspace.</p>
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-logo">
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px var(--accent-soft)' }}>
+            <div style={{ width: 13, height: 13, borderRadius: '50%', border: '3px solid rgba(255,255,255,.9)' }} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>SpotOn</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Delivery</div>
+          </div>
+        </div>
+        <div className="login-title">Welcome back</div>
+        <div className="login-sub">Sign in to your delivery workspace</div>
+        <form onSubmit={submit} className="login-form">
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+          {error && <div className="error">{error}</div>}
+          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', fontSize: 14 }} disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
       </div>
-      <form onSubmit={submit} className="card" style={{ display: 'grid', gap: 14 }}>
-        <div className="field">
-          <label htmlFor="email">Email</label>
-          <input id="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-        </div>
-        {error ? <div className="error">{error}</div> : null}
-        <button className="button" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
-      </form>
-    </main>
+    </div>
   );
 }
