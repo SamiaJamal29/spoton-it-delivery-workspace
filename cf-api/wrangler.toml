@@ -1,0 +1,10 @@
+name = "spoton-api"
+main = "src/index.ts"
+compatibility_date = "2026-06-19"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "spoton-api-db"
+database_id = "0e39952f-fba5-4df5-8ff7-5d349016bf68"
