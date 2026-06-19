@@ -152,50 +152,62 @@ export default function DashboardPage() {
 
       {/* BOARD TAB */}
       {tab === 'board' && (
-        <div
-          className="kanban"
-          ref={kanbanRef}
-          onMouseDown={onMouseDown}
-          onMouseLeave={onMouseLeave}
-          onMouseUp={onMouseUp}
-          onMouseMove={onMouseMove}
+        <div className="kanban" ref={kanbanRef}
+          onMouseDown={onMouseDown} onMouseLeave={onMouseLeave} onMouseUp={onMouseUp} onMouseMove={onMouseMove}
           style={{ minHeight: 500 }}
         >
           {STATUSES.map(status => {
             const colItems = items.filter(i => i.status === status);
-            const col = { color: STATUS_COLOR[status], label: STATUS_LABEL[status] };
+            const color = STATUS_COLOR[status];
+            const label = STATUS_LABEL[status];
+            const PRIORITY_BG: Record<string, string> = {
+              urgent: '#fef2f2', high: '#fff7ed', medium: '#eff6ff', low: '#f8fafc',
+            };
             return (
               <div key={status} className="kanban-col">
-                <div className="kanban-col-header" style={{ borderTopColor: col.color }}>
-                  <span className="kanban-col-title" style={{ color: col.color }}>{col.label}</span>
-                  <span className="kanban-col-count" style={{ background: col.color }}>{colItems.length}</span>
+                <div className="kanban-col-header" style={{ background: color + '15', borderBottom: `1px solid ${color}30` }}>
+                  <div className="kanban-col-header-left">
+                    <span className="kanban-col-dot" style={{ background: color }} />
+                    <span className="kanban-col-title">{label}</span>
+                  </div>
+                  <span className="kanban-col-count" style={{ background: color }}>{colItems.length}</span>
                 </div>
                 <div className="kanban-cards">
-                  {colItems.length === 0 && <div className="kanban-empty">No work items</div>}
+                  {colItems.length === 0 && (
+                    <div className="kanban-empty">
+                      <span className="kanban-empty-icon">📭</span>
+                      <span>No work items</span>
+                    </div>
+                  )}
                   {colItems.map(item => {
                     const passed = item.qaChecks?.filter(q => q.status === 'passed').length ?? 0;
                     const totalQa = item.qaChecks?.length ?? 0;
                     return (
                       <div key={item.id} className="kanban-card" style={{ cursor: 'pointer' }} onClick={() => openPanel(item.id)}>
-                        <div className="kanban-card-top" style={{ marginBottom: 6 }}>
-                          <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: 'var(--text-3)', background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>
-                            WI-{item.id.slice(-6).toUpperCase()}
-                          </span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: PRIORITY_COLOR[item.priority] + '22', color: PRIORITY_COLOR[item.priority] }}>
-                            {item.priority.toUpperCase()}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: 'var(--text)', marginBottom: 8 }}>{item.title}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-3)' }}>{TYPE_LABEL[item.type] ?? item.type}</span>
-                          {item.assignee && (
-                            <span title={item.assignee} style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, marginLeft: 'auto' }}>
-                              {initials(item.assignee)}
+                        <div className="kanban-card-bar" style={{ background: color }} />
+                        <div className="kanban-card-body">
+                          <div className="kanban-card-top">
+                            <span className="kanban-card-id">WI-{item.id.slice(-5).toUpperCase()}</span>
+                          </div>
+                          <div className="kanban-card-title">{item.title}</div>
+                          <div className="kanban-card-footer">
+                            <span className="kanban-priority-pill"
+                              style={{ color: PRIORITY_COLOR[item.priority], background: PRIORITY_BG[item.priority] }}>
+                              {item.priority}
                             </span>
-                          )}
-                          {totalQa > 0 && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: passed === totalQa ? '#16a34a' : '#f59e0b' }}>✓ {passed}/{totalQa}</span>
-                          )}
+                            <span className="kanban-type-chip">{TYPE_LABEL[item.type] ?? item.type}</span>
+                            {item.assignee && (
+                              <span className="kanban-assignee-avatar" style={{ background: color }} title={item.assignee}>
+                                {initials(item.assignee)}
+                              </span>
+                            )}
+                            {totalQa > 0 && (
+                              <span className="kanban-qa-badge"
+                                style={{ color: passed === totalQa ? '#059669' : '#d97706', background: passed === totalQa ? '#ecfdf5' : '#fffbeb' }}>
+                                ✓ {passed}/{totalQa}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
