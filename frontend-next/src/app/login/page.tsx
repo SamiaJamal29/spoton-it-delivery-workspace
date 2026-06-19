@@ -7,8 +7,8 @@ import { api, saveToken } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('intern@spoton.test');
-  const [password, setPassword] = useState('intern123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -44,11 +44,11 @@ export default function LoginPage() {
         <form onSubmit={submit} className="login-form">
           <div className="field">
             <label htmlFor="email">Email</label>
-            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" autoComplete="current-password" />
           </div>
           {error && <div className="error">{error}</div>}
           <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', fontSize: 14 }} disabled={loading}>

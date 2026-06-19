@@ -1,34 +1,47 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { User } from '../database/user.entity';
 import type { RequestUser } from '../common/request-user';
 
-const SEEDED_USER: RequestUser & { password: string } = {
-  id: 'usr_intern_001',
-  name: 'Intern Candidate',
-  email: 'intern@spoton.test',
-  role: 'intern',
-  password: 'intern123',
-};
+const PASSWORD_RULES = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    @InjectRepository(User) private readonly users: Repository<User>,
+  ) {}
 
-  login(email: string, password: string) {
-    if (email !== SEEDED_USER.email || password !== SEEDED_USER.password) {
-      throw new UnauthorizedException('Invalid email or password');
+  async register(name: string, email: string, password: string) {
+    if (!name?.trim()) throw new BadRequestException('Name is required');
+    if (!PASSWORD_RULES.test(password)) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
+      );
     }
 
-    const user: RequestUser = {
-      id: SEEDED_USER.id,
-      name: SEEDED_USER.name,
-      email: SEEDED_USER.email,
-      role: SEEDED_USER.role,
-    };
+    const existing = await this.users.findOneBy({ email: email.toLowerCase() });
+    if (existing) throw new BadRequestException('An account with this email already exists');
 
-    return {
-      accessToken: this.jwt.sign(user),
-      user,
-    };
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = this.users.create({ name: name.trim(), email: email.toLowerCase(), passwordHash });
+    const saved = await this.users.save(user);
+
+    const payload: RequestUser = { id: saved.id, name: saved.name, email: saved.email, role: saved.role as RequestUser['role'] };
+    return { accessToken: this.jwt.sign(payload), user: payload };
+  }
+
+  async login(email: string, password: string) {
+    const user = await this.users.findOneBy({ email: email.toLowerCase() });
+    if (!user) throw new UnauthorizedException('Invalid email or password');
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Invalid email or password');
+
+    const payload: RequestUser = { id: user.id, name: user.name, email: user.email, role: user.role as RequestUser['role'] };
+    return { accessToken: this.jwt.sign(payload), user: payload };
   }
 }

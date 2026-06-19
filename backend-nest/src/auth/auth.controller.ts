@@ -10,13 +10,31 @@ class LoginDto {
   email!: string;
 
   @IsString()
-  @MinLength(3)
+  @MinLength(1)
+  password!: string;
+}
+
+class RegisterDto {
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
   password!: string;
 }
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  @Post('register')
+  register(@Body() body: RegisterDto) {
+    return this.auth.register(body.name, body.email, body.password);
+  }
 
   @Post('login')
   login(@Body() body: LoginDto) {

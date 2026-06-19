@@ -1,34 +1,50 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { api, saveToken } from '@/lib/api';
+
+function checkPassword(pw: string) {
+  return {
+    length: pw.length >= 8,
+    upper: /[A-Z]/.test(pw),
+    lower: /[a-z]/.test(pw),
+    number: /\d/.test(pw),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(pw),
+  };
+}
 
 export default function SignupPage() {
+  const router = useRouter();
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const set = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }));
+  const rules = checkPassword(form.password);
+  const allRulesMet = Object.values(rules).every(Boolean);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password) {
-      setMessage('error:Please fill in all fields.');
-      return;
-    }
-    if (form.password !== form.confirm) {
-      setMessage('error:Passwords do not match.');
-      return;
-    }
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
-    setLoading(false);
-    setMessage('demo:Demo mode — use: intern@spoton.test / intern123 to sign in');
-  }
+    setError('');
 
-  const isError = message.startsWith('error:');
-  const isDemo = message.startsWith('demo:');
-  const displayMsg = message.replace(/^(error|demo):/, '');
+    if (!form.name.trim()) { setError('Please enter your full name.'); return; }
+    if (!form.email.trim()) { setError('Please enter your email.'); return; }
+    if (!allRulesMet) { setError('Password does not meet all requirements.'); return; }
+    if (form.password !== form.confirm) { setError('Passwords do not match.'); return; }
+
+    setLoading(true);
+    try {
+      const result = await api.register(form.name.trim(), form.email.trim(), form.password);
+      saveToken(result.accessToken);
+      router.push('/pm/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="login-wrap">
@@ -47,26 +63,40 @@ export default function SignupPage() {
         <form onSubmit={submit} className="login-form">
           <div className="field">
             <label htmlFor="name">Full Name</label>
-            <input id="name" type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Your name" />
+            <input id="name" type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Your name" autoComplete="name" />
           </div>
           <div className="field">
             <label htmlFor="email">Email</label>
-            <input id="email" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com" />
+            <input id="email" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com" autoComplete="email" />
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input id="password" type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Choose a password" />
+            <input id="password" type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Choose a strong password" autoComplete="new-password" />
+            {form.password.length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[
+                  { key: 'length', label: 'At least 8 characters' },
+                  { key: 'upper', label: 'One uppercase letter (A–Z)' },
+                  { key: 'lower', label: 'One lowercase letter (a–z)' },
+                  { key: 'number', label: 'One number (0–9)' },
+                  { key: 'special', label: 'One special character (!@#$%^&* …)' },
+                ].map(({ key, label }) => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: rules[key as keyof typeof rules] ? '#059669' : '#9ca3af' }}>
+                    <span style={{ fontSize: 14, lineHeight: 1 }}>{rules[key as keyof typeof rules] ? '✓' : '○'}</span>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="field">
             <label htmlFor="confirm">Confirm Password</label>
-            <input id="confirm" type="password" value={form.confirm} onChange={e => set('confirm', e.target.value)} placeholder="Repeat password" />
+            <input id="confirm" type="password" value={form.confirm} onChange={e => set('confirm', e.target.value)} placeholder="Repeat password" autoComplete="new-password" />
+            {form.confirm.length > 0 && form.password !== form.confirm && (
+              <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>Passwords do not match</div>
+            )}
           </div>
-          {isError && <div className="error">{displayMsg}</div>}
-          {isDemo && (
-            <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
-              {displayMsg}
-            </div>
-          )}
+          {error && <div className="error">{error}</div>}
           <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', fontSize: 14 }} disabled={loading}>
             {loading ? 'Creating account…' : 'Create account'}
           </button>

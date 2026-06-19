@@ -89,6 +89,9 @@ export const api = {
   login: (email: string, password: string) =>
     request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 
+  register: (name: string, email: string, password: string) =>
+    request<LoginResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
+
   me: () => request<LoginResponse['user']>('/auth/me'),
 
   score: () => request<ScoreSummary>('/score/me'),
