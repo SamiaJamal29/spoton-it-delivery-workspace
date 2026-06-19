@@ -28,6 +28,11 @@ export class WorkItemsController {
     return this.service.findAssignedTo(user.name);
   }
 
+  @Get(':id/activities')
+  getActivities(@Param('id') id: string) {
+    return this.service.getActivities(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
@@ -44,7 +49,7 @@ export class WorkItemsController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: RequestUser) {
+    return this.service.remove(id, user);
   }
 }

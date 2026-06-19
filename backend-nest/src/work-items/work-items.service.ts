@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkItem, WorkItemStatus } from '../database/work-item.entity';
+import { WorkItemActivity } from '../database/work-item-activity.entity';
 import { ScoreEvent } from '../database/score-event.entity';
 import { CreateWorkItemDto, UpdateWorkItemDto } from './work-items.dto';
 import type { RequestUser } from '../common/request-user';
@@ -25,6 +26,8 @@ export class WorkItemsService {
   constructor(
     @InjectRepository(WorkItem)
     private readonly workItemRepo: Repository<WorkItem>,
+    @InjectRepository(WorkItemActivity)
+    private readonly activityRepo: Repository<WorkItemActivity>,
     @InjectRepository(ScoreEvent)
     private readonly scoreRepo: Repository<ScoreEvent>,
   ) {}
@@ -42,7 +45,6 @@ export class WorkItemsService {
     return qb.orderBy('wi.createdAt', 'DESC').getMany();
   }
 
-  // Returns all items assigned to a given name — no createdBy filter so PMs' assignments are included
   async findAssignedTo(assigneeName: string) {
     return this.workItemRepo.createQueryBuilder('wi')
       .leftJoinAndSelect('wi.qaChecks', 'qa')
@@ -55,6 +57,13 @@ export class WorkItemsService {
     const item = await this.workItemRepo.findOne({ where: { id }, relations: ['qaChecks'] });
     if (!item) throw new NotFoundException('Work item not found');
     return item;
+  }
+
+  async getActivities(workItemId: string) {
+    return this.activityRepo.find({
+      where: { workItemId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async create(dto: CreateWorkItemDto, user: RequestUser) {
@@ -70,6 +79,13 @@ export class WorkItemsService {
 
   async update(id: string, dto: UpdateWorkItemDto, user: RequestUser) {
     const item = await this.findOne(id);
+
+    // Authorization: creator can do anything; assigned member can update status only
+    const isCreator = item.createdBy === user.id;
+    const isAssignee = !!item.assignee && item.assignee.toLowerCase().includes(user.name.toLowerCase());
+    if (!isCreator && !isAssignee) {
+      throw new ForbiddenException('You do not have permission to update this work item');
+    }
 
     if (dto.status && dto.status !== item.status) {
       const allowed = VALID_TRANSITIONS[item.status];
@@ -87,14 +103,31 @@ export class WorkItemsService {
       if (scoreConfig) {
         await this.awardScore(user.id, scoreConfig.action, id, scoreConfig.points);
       }
+
+      // Record status transition in activity log
+      await this.activityRepo.save(
+        this.activityRepo.create({
+          workItemId: id,
+          changedById: user.id,
+          changedByName: user.name,
+          fromStatus: item.status,
+          toStatus: dto.status,
+        }),
+      );
     }
 
     Object.assign(item, dto);
     return this.workItemRepo.save(item);
   }
 
-  async remove(id: string) {
+  async remove(id: string, user: RequestUser) {
     const item = await this.findOne(id);
+
+    // Authorization: only the creator can delete
+    if (item.createdBy !== user.id) {
+      throw new ForbiddenException('Only the creator can delete a work item');
+    }
+
     await this.workItemRepo.remove(item);
     return { message: 'Deleted' };
   }

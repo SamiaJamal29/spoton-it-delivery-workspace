@@ -10,6 +10,7 @@ import { ItWorkspaceController } from './it-workspace/it-workspace.controller';
 import { ItWorkspaceService } from './it-workspace/it-workspace.service';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { WorkItem } from './database/work-item.entity';
+import { WorkItemActivity } from './database/work-item-activity.entity';
 import { QaCheck } from './database/qa-check.entity';
 import { Release } from './database/release.entity';
 import { ScoreEvent } from './database/score-event.entity';
@@ -36,7 +37,7 @@ import { Message } from './database/message.entity';
         ? {
             type: 'postgres',
             url: process.env.DATABASE_URL,
-            entities: [WorkItem, QaCheck, Release, ScoreEvent, User, Message],
+            entities: [WorkItem, WorkItemActivity, QaCheck, Release, ScoreEvent, User, Message],
             synchronize: true,
             ssl: { rejectUnauthorized: false },
           }
@@ -47,11 +48,11 @@ import { Message } from './database/message.entity';
             username: process.env.DB_USER ?? 'postgres',
             password: process.env.DB_PASS ?? 'postgres',
             database: process.env.DB_NAME ?? 'spoton_challenge',
-            entities: [WorkItem, QaCheck, Release, ScoreEvent, User, Message],
+            entities: [WorkItem, WorkItemActivity, QaCheck, Release, ScoreEvent, User, Message],
             synchronize: true,
           },
     ),
-    TypeOrmModule.forFeature([WorkItem, QaCheck, Release, ScoreEvent, User, Message]),
+    TypeOrmModule.forFeature([WorkItem, WorkItemActivity, QaCheck, Release, ScoreEvent, User, Message]),
   ],
   controllers: [
     HealthController,

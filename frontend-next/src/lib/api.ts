@@ -152,6 +152,8 @@ export const api = {
       request<WorkItem>(`/work-items/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     delete: (id: string) =>
       request<{ message: string }>(`/work-items/${id}`, { method: 'DELETE' }),
+    activities: (id: string) =>
+      request<Array<{ id: string; workItemId: string; changedById: string; changedByName: string; fromStatus: string; toStatus: string; createdAt: string }>>(`/work-items/${id}/activities`),
   },
 
   qaChecks: {

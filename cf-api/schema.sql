@@ -64,6 +64,16 @@ CREATE TABLE IF NOT EXISTS score_events (
   UNIQUE(user_id, action, entity_id)
 );
 
+CREATE TABLE IF NOT EXISTS work_item_activities (
+  id TEXT PRIMARY KEY,
+  work_item_id TEXT NOT NULL,
+  changed_by_id TEXT NOT NULL,
+  changed_by_name TEXT NOT NULL,
+  from_status TEXT NOT NULL,
+  to_status TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
   from_id TEXT NOT NULL,

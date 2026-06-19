@@ -25,6 +25,7 @@ export default function WorkItemDetailPage() {
   const router = useRouter();
   const [item, setItem] = useState<WorkItem | null>(null);
   const [qaChecks, setQaChecks] = useState<QaCheck[]>([]);
+  const [activities, setActivities] = useState<Array<{ id: string; changedByName: string; fromStatus: string; toStatus: string; createdAt: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusError, setStatusError] = useState('');
@@ -36,12 +37,14 @@ export default function WorkItemDetailPage() {
 
   const load = async () => {
     try {
-      const [wi, checks] = await Promise.all([
+      const [wi, checks, acts] = await Promise.all([
         api.workItems.get(id),
         api.qaChecks.listByWorkItem(id),
+        api.workItems.activities(id),
       ]);
       setItem(wi);
       setQaChecks(checks);
+      setActivities(acts);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
@@ -220,6 +223,25 @@ export default function WorkItemDetailPage() {
           </div>
         ))}
       </div>
+      {/* Activity Log */}
+      {activities.length > 0 && (
+        <div className="section">
+          <h2 className="section-title">Status History</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {activities.map((a) => (
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--text-secondary, #6b7280)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[a.toStatus] ?? '#6b7280', flexShrink: 0 }} />
+                <span style={{ fontWeight: 500, color: 'var(--text-primary, #111)' }}>{a.changedByName}</span>
+                <span>moved</span>
+                <span style={{ background: STATUS_COLORS[a.fromStatus] ?? '#6b7280', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 11 }}>{a.fromStatus.replace(/_/g, ' ')}</span>
+                <span>→</span>
+                <span style={{ background: STATUS_COLORS[a.toStatus] ?? '#6b7280', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 11 }}>{a.toStatus.replace(/_/g, ' ')}</span>
+                <span style={{ marginLeft: 'auto' }}>{new Date(a.createdAt).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

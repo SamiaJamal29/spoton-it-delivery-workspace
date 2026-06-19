@@ -230,6 +230,11 @@ app.get('/work-items/assigned-to-me', requireAuth, async (c) => {
   return c.json(await getWorkItemsWithQa(c.env.DB, 'SELECT * FROM work_items WHERE assignee LIKE ? ORDER BY created_at DESC', [`%${name}%`]));
 });
 
+app.get('/work-items/:id/activities', requireAuth, async (c) => {
+  const { results } = await c.env.DB.prepare('SELECT * FROM work_item_activities WHERE work_item_id = ? ORDER BY created_at DESC').bind(c.req.param('id')).all<Record<string, unknown>>();
+  return c.json(results.map(r => ({ id: r.id, workItemId: r.work_item_id, changedById: r.changed_by_id, changedByName: r.changed_by_name, fromStatus: r.from_status, toStatus: r.to_status, createdAt: r.created_at })));
+});
+
 app.get('/work-items/:id', requireAuth, async (c) => {
   const items = await getWorkItemsWithQa(c.env.DB, 'SELECT * FROM work_items WHERE id = ?', [c.req.param('id')]);
   if (!items.length) return c.json({ message: 'Work item not found' }, 404);
@@ -249,11 +254,17 @@ app.post('/work-items', requireAuth, async (c) => {
 });
 
 app.patch('/work-items/:id', requireAuth, async (c) => {
-  const { id: userId } = c.get('user');
+  const { id: userId, name: userName } = c.get('user');
   const id = c.req.param('id');
   const body = await c.req.json<Record<string, unknown>>();
   const current = await c.env.DB.prepare('SELECT * FROM work_items WHERE id = ?').bind(id).first<Record<string, unknown>>();
   if (!current) return c.json({ message: 'Work item not found' }, 404);
+
+  // Authorization: creator or assignee only
+  const isCreator = current.created_by === userId;
+  const isAssignee = !!(current.assignee as string | null)?.toLowerCase().includes(userName.toLowerCase());
+  if (!isCreator && !isAssignee) return c.json({ message: 'You do not have permission to update this work item' }, 403);
+
   if (body.status && body.status !== current.status) {
     const allowed = VALID_TRANSITIONS[current.status as string] ?? [];
     if (!allowed.includes(body.status as string)) return c.json({ message: `Cannot move from "${current.status}" to "${body.status}". Allowed: ${allowed.join(', ') || 'none'}` }, 400);
@@ -265,6 +276,9 @@ app.patch('/work-items/:id', requireAuth, async (c) => {
     }
     if (body.status === 'qa') await awardScore(c.env.DB, userId, 'move_to_qa', id, 1);
     if (body.status === 'ready_for_release') await awardScore(c.env.DB, userId, 'move_to_ready', id, 2);
+    // Record activity
+    await c.env.DB.prepare('INSERT INTO work_item_activities (id, work_item_id, changed_by_id, changed_by_name, from_status, to_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(crypto.randomUUID(), id, userId, userName, current.status, body.status, new Date().toISOString()).run();
   }
   const colMap: Record<string, string> = { dueDate: 'due_date', projectId: 'project_id' };
   const updatableFields = ['title', 'description', 'type', 'status', 'priority', 'assignee', 'dueDate', 'projectId'];
@@ -279,8 +293,10 @@ app.patch('/work-items/:id', requireAuth, async (c) => {
 });
 
 app.delete('/work-items/:id', requireAuth, async (c) => {
-  const row = await c.env.DB.prepare('SELECT id FROM work_items WHERE id = ?').bind(c.req.param('id')).first();
+  const { id: userId } = c.get('user');
+  const row = await c.env.DB.prepare('SELECT id, created_by FROM work_items WHERE id = ?').bind(c.req.param('id')).first<Record<string, unknown>>();
   if (!row) return c.json({ message: 'Work item not found' }, 404);
+  if (row.created_by !== userId) return c.json({ message: 'Only the creator can delete a work item' }, 403);
   await c.env.DB.prepare('DELETE FROM work_items WHERE id = ?').bind(c.req.param('id')).run();
   return c.json({ message: 'Deleted' });
 });
