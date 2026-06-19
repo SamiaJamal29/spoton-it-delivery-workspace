@@ -80,11 +80,11 @@ export default function ReleasesPage() {
   if (error) return <div className="workspace-error">{error}</div>;
 
   return (
-    <div className="workspace">
-      <div className="workspace-header">
+    <div style={{ maxWidth: 900, animation: 'fadeUp .3s ease' }}>
+      <div className="page-header">
         <div>
-          <h1 className="workspace-title">Releases</h1>
-          <p className="workspace-subtitle">{releases.length} releases</p>
+          <div className="page-title">Releases</div>
+          <div className="page-sub">{releases.length} release{releases.length !== 1 ? 's' : ''}</div>
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
           + New Release
@@ -176,3 +176,4 @@ export default function ReleasesPage() {
     </div>
   );
 }
+

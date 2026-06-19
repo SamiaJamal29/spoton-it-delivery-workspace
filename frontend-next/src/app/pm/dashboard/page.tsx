@@ -58,6 +58,12 @@ function initials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
 }
 
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  backlog: ['planned'], planned: ['in_progress', 'backlog'],
+  in_progress: ['qa', 'planned'], qa: ['ready_for_release', 'in_progress'],
+  ready_for_release: ['qa'], released: [],
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [items, setItems] = useState<WorkItem[]>([]);
@@ -66,20 +72,56 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'board' | 'analytics'>('board');
 
+  // DnD state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number>(-1);
+
   // Kanban scroll drag
   const kanbanRef = useRef<HTMLDivElement>(null);
-  const drag = useRef({ on: false, startX: 0, scrollLeft: 0 });
+  const scrollDrag = useRef({ on: false, startX: 0, scrollLeft: 0 });
   const onMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.kanban-card')) return;
     const el = kanbanRef.current; if (!el) return;
-    drag.current = { on: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
+    scrollDrag.current = { on: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
   };
-  const onMouseLeave = () => { drag.current.on = false; };
-  const onMouseUp = () => { drag.current.on = false; };
+  const onMouseLeave = () => { scrollDrag.current.on = false; };
+  const onMouseUp = () => { scrollDrag.current.on = false; };
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!drag.current.on || !kanbanRef.current) return;
+    if (!scrollDrag.current.on || !kanbanRef.current || dragId) return;
     e.preventDefault();
     const x = e.pageX - kanbanRef.current.offsetLeft;
-    kanbanRef.current.scrollLeft = drag.current.scrollLeft - (x - drag.current.startX) * 1.5;
+    kanbanRef.current.scrollLeft = scrollDrag.current.scrollLeft - (x - scrollDrag.current.startX) * 1.5;
+  };
+
+  const loadItems = () => api.workItems.list().then(wi => setItems(wi)).catch(() => {});
+
+  // DnD handlers
+  const onDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id); e.dataTransfer.effectAllowed = 'move';
+  };
+  const onDragEnd = () => { setDragId(null); setOverCol(null); setDropIndex(-1); };
+  const onCardDragOver = (e: React.DragEvent, col: string, idx: number) => {
+    e.preventDefault(); e.stopPropagation();
+    setOverCol(col); setDropIndex(idx);
+  };
+  const onColDragOver = (e: React.DragEvent, col: string, len: number) => {
+    e.preventDefault(); setOverCol(col); setDropIndex(len);
+  };
+  const onDrop = async (e: React.DragEvent, targetKey: string) => {
+    e.preventDefault(); setOverCol(null); setDropIndex(-1);
+    if (!dragId) return;
+    const item = items.find(i => i.id === dragId);
+    if (!item || item.status === targetKey) { setDragId(null); return; }
+    const allowed = VALID_TRANSITIONS[item.status] ?? [];
+    if (!allowed.includes(targetKey)) {
+      alert(`Cannot move "${item.status.replace(/_/g,' ')}" → "${targetKey.replace(/_/g,' ')}"`);
+      setDragId(null); return;
+    }
+    setItems(prev => prev.map(i => i.id === dragId ? { ...i, status: targetKey as WorkItem['status'] } : i));
+    setDragId(null);
+    try { await api.workItems.update(dragId, { status: targetKey as WorkItem['status'] }); }
+    catch { loadItems(); }
   };
 
   useEffect(() => {
@@ -160,11 +202,16 @@ export default function DashboardPage() {
             const colItems = items.filter(i => i.status === status);
             const color = STATUS_COLOR[status];
             const label = STATUS_LABEL[status];
+            const isOver = overCol === status;
             const PRIORITY_BG: Record<string, string> = {
               urgent: '#fef2f2', high: '#fff7ed', medium: '#eff6ff', low: '#f8fafc',
             };
             return (
-              <div key={status} className="kanban-col">
+              <div key={status} className={`kanban-col${isOver ? ' kanban-col-over' : ''}`}
+                onDragOver={e => onColDragOver(e, status, colItems.length)}
+                onDrop={e => onDrop(e, status)}
+                onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setOverCol(null); setDropIndex(-1); } }}
+              >
                 <div className="kanban-col-header" style={{ background: color + '15', borderBottom: `1px solid ${color}30` }}>
                   <div className="kanban-col-header-left">
                     <span className="kanban-col-dot" style={{ background: color }} />
@@ -174,44 +221,60 @@ export default function DashboardPage() {
                 </div>
                 <div className="kanban-cards">
                   {colItems.length === 0 && (
-                    <div className="kanban-empty">
+                    <div className={`kanban-empty${isOver ? ' kanban-empty-over' : ''}`}
+                      onDragOver={e => { e.preventDefault(); e.stopPropagation(); setOverCol(status); setDropIndex(0); }}>
                       <span className="kanban-empty-icon">📭</span>
-                      <span>No work items</span>
+                      <span>{isOver ? 'Drop here' : 'No items'}</span>
                     </div>
                   )}
-                  {colItems.map(item => {
+                  {colItems.map((item, idx) => {
                     const passed = item.qaChecks?.filter(q => q.status === 'passed').length ?? 0;
                     const totalQa = item.qaChecks?.length ?? 0;
+                    const isDragging = dragId === item.id;
+                    const showIndicator = isOver && dropIndex === idx;
                     return (
-                      <div key={item.id} className="kanban-card" style={{ cursor: 'pointer' }} onClick={() => openPanel(item.id)}>
-                        <div className="kanban-card-bar" style={{ background: color }} />
-                        <div className="kanban-card-body">
-                          <div className="kanban-card-top">
-                            <span className="kanban-card-id">WI-{item.id.slice(-5).toUpperCase()}</span>
-                          </div>
-                          <div className="kanban-card-title">{item.title}</div>
-                          <div className="kanban-card-footer">
-                            <span className="kanban-priority-pill"
-                              style={{ color: PRIORITY_COLOR[item.priority], background: PRIORITY_BG[item.priority] }}>
-                              {item.priority}
-                            </span>
-                            <span className="kanban-type-chip">{TYPE_LABEL[item.type] ?? item.type}</span>
-                            {item.assignee && (
-                              <span className="kanban-assignee-avatar" style={{ background: color }} title={item.assignee}>
-                                {initials(item.assignee)}
+                      <div key={item.id}>
+                        {showIndicator && <div className="kanban-drop-indicator" />}
+                        <div className={`kanban-card${isDragging ? ' kanban-card-dragging' : ''}`}
+                          draggable
+                          onDragStart={e => onDragStart(e, item.id)}
+                          onDragEnd={onDragEnd}
+                          onDragOver={e => onCardDragOver(e, status, idx)}
+                          onClick={() => !dragId && openPanel(item.id)}
+                          style={{ cursor: 'grab' }}
+                        >
+                          <div className="kanban-card-bar" style={{ background: color }} />
+                          <div className="kanban-card-body">
+                            <div className="kanban-card-top">
+                              <span className="kanban-card-id">WI-{item.id.slice(-5).toUpperCase()}</span>
+                            </div>
+                            <div className="kanban-card-title">{item.title}</div>
+                            <div className="kanban-card-footer">
+                              <span className="kanban-priority-pill"
+                                style={{ color: PRIORITY_COLOR[item.priority], background: PRIORITY_BG[item.priority] }}>
+                                {item.priority}
                               </span>
-                            )}
-                            {totalQa > 0 && (
-                              <span className="kanban-qa-badge"
-                                style={{ color: passed === totalQa ? '#059669' : '#d97706', background: passed === totalQa ? '#ecfdf5' : '#fffbeb' }}>
-                                ✓ {passed}/{totalQa}
-                              </span>
-                            )}
+                              <span className="kanban-type-chip">{TYPE_LABEL[item.type] ?? item.type}</span>
+                              {item.assignee && (
+                                <span className="kanban-assignee-avatar" style={{ background: color }} title={item.assignee}>
+                                  {initials(item.assignee)}
+                                </span>
+                              )}
+                              {totalQa > 0 && (
+                                <span className="kanban-qa-badge"
+                                  style={{ color: passed === totalQa ? '#059669' : '#d97706', background: passed === totalQa ? '#ecfdf5' : '#fffbeb' }}>
+                                  ✓ {passed}/{totalQa}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     );
                   })}
+                  {isOver && dropIndex >= colItems.length && colItems.length > 0 && (
+                    <div className="kanban-drop-indicator" />
+                  )}
                 </div>
               </div>
             );
