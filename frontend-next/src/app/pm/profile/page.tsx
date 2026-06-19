@@ -24,6 +24,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[0]);
@@ -36,6 +37,7 @@ export default function ProfilePage() {
     api.me().then(u => {
       setUser(u);
       setEditName(u.name);
+      setEditRole(u.role);
       const savedColor = localStorage.getItem(`spoton_avatar_color_${u.id}`);
       if (savedColor) setAvatarColor(savedColor);
       setProjects(getProjects(u.id));
@@ -61,7 +63,7 @@ export default function ProfilePage() {
     if (!editName.trim() || !user) return;
     setSaving(true);
     try {
-      const result = await api.updateProfile(editName.trim());
+      const result = await api.updateProfile(editName.trim(), editRole.trim() || undefined);
       saveToken(result.accessToken);
       setUser(result.user);
       setEditing(false);
@@ -107,19 +109,28 @@ export default function ProfilePage() {
           {/* Info */}
           <div style={{ flex: 1, minWidth: 200 }}>
             {editing ? (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                <input className="form-input" value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveName()} autoFocus style={{ fontSize: 18, fontWeight: 700, maxWidth: 260 }} />
-                <button className="btn btn-primary btn-sm" onClick={saveName} disabled={saving}>{saving ? '…' : 'Save'}</button>
-                <button className="btn btn-sm" onClick={() => { setEditing(false); setEditName(user.name); }}>Cancel</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input className="form-input" value={editName} onChange={e => setEditName(e.target.value)} autoFocus style={{ fontSize: 16, fontWeight: 700, maxWidth: 220 }} placeholder="Full name" />
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input className="form-input" value={editRole} onChange={e => setEditRole(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveName()} style={{ fontSize: 13, maxWidth: 220 }} placeholder="Job title (e.g. Frontend Developer)" />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={saveName} disabled={saving}>{saving ? '…' : 'Save'}</button>
+                  <button className="btn btn-sm" onClick={() => { setEditing(false); setEditName(user.name); setEditRole(user.role); }}>Cancel</button>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{user.name}</div>
-                <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 13, padding: '2px 6px', borderRadius: 4 }} title="Edit name">✏️</button>
+                <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 13, padding: '2px 6px', borderRadius: 4 }} title="Edit profile">✏️</button>
               </div>
             )}
-            <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 4 }}>{user.email}</div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>{user.role}</div>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 6 }}>{user.email}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
+              {user.role === 'intern' || user.role === 'Member' ? 'Member' : user.role}
+            </div>
           </div>
 
           {/* Score */}

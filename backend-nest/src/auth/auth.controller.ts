@@ -49,7 +49,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
-  updateProfile(@Body() body: { name?: string }, @CurrentUser() user: RequestUser) {
-    return this.auth.updateProfile(user.id, body.name);
+  updateProfile(@Body() body: { name?: string; role?: string }, @CurrentUser() user: RequestUser) {
+    return this.auth.updateProfile(user.id, body.name, body.role);
   }
 }

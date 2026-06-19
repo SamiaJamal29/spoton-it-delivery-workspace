@@ -14,7 +14,7 @@ export class User {
   @Column()
   passwordHash!: string;
 
-  @Column({ default: 'intern' })
+  @Column({ default: 'Member' })
   role!: string;
 
   @CreateDateColumn()

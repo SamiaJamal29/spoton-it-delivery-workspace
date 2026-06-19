@@ -30,7 +30,7 @@ export class AuthService {
     const user = this.users.create({ name: name.trim(), email: email.toLowerCase(), passwordHash });
     const saved = await this.users.save(user);
 
-    const payload: RequestUser = { id: saved.id, name: saved.name, email: saved.email, role: saved.role as RequestUser['role'] };
+    const payload: RequestUser = { id: saved.id, name: saved.name, email: saved.email, role: saved.role  };
     return { accessToken: this.jwt.sign(payload), user: payload };
   }
 
@@ -41,16 +41,17 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid email or password');
 
-    const payload: RequestUser = { id: user.id, name: user.name, email: user.email, role: user.role as RequestUser['role'] };
+    const payload: RequestUser = { id: user.id, name: user.name, email: user.email, role: user.role  };
     return { accessToken: this.jwt.sign(payload), user: payload };
   }
 
-  async updateProfile(userId: string, name?: string) {
+  async updateProfile(userId: string, name?: string, role?: string) {
     const user = await this.users.findOneBy({ id: userId });
     if (!user) throw new NotFoundException('User not found');
     if (name?.trim()) user.name = name.trim();
+    if (role?.trim()) user.role = role.trim();
     const saved = await this.users.save(user);
-    const payload: RequestUser = { id: saved.id, name: saved.name, email: saved.email, role: saved.role as RequestUser['role'] };
+    const payload: RequestUser = { id: saved.id, name: saved.name, email: saved.email, role: saved.role };
     return { accessToken: this.jwt.sign(payload), user: payload };
   }
 }
