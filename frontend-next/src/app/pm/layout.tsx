@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-import { api, clearToken, getActiveProject, getActiveProjectId, Project } from '@/lib/api';
+import { api, clearToken, getActiveProject, getActiveProjectId, getProjects, setActiveProject, Project } from '@/lib/api';
 import TaskPanel from '@/components/TaskPanel';
 
 type User = { id: string; name: string; email: string; role: string };
@@ -35,6 +35,8 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [activeProject, setActiveProjectState] = useState<Project | null>(null);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [showSwitch, setShowSwitch] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
@@ -46,6 +48,7 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
     api.me().then(u => {
       setUser(u);
       setActiveProjectState(getActiveProject(u.id));
+      setAllProjects(getProjects(u.id));
     }).catch(() => router.push('/login'));
     const pid = getActiveProjectId();
     api.workItems.list(pid ? { projectId: pid } : {}).then(items => {
@@ -92,15 +95,40 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         {activeProject && (
-          <div style={{ margin: '0 12px 4px', padding: '8px 10px', borderRadius: 8, background: activeProject.color + '15', border: `1px solid ${activeProject.color}30` }}>
-            <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>Active Project</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeProject.color, flexShrink: 0, display: 'inline-block' }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeProject.name}</span>
+          <div style={{ margin: '0 12px 4px', position: 'relative' }}>
+            <div style={{ padding: '8px 10px', borderRadius: 8, background: activeProject.color + '15', border: `1px solid ${activeProject.color}30` }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>Active Project</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeProject.color, flexShrink: 0, display: 'inline-block' }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeProject.name}</span>
+                </div>
+                <button onClick={() => setShowSwitch(v => !v)} style={{ fontSize: 10, color: activeProject.color, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: 0 }}>Switch ▾</button>
               </div>
-              <Link href="/pm/projects" style={{ fontSize: 10, color: activeProject.color, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Switch</Link>
             </div>
+
+            {showSwitch && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 200, overflow: 'hidden' }}>
+                {allProjects.length === 0 && (
+                  <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-3)' }}>No other projects</div>
+                )}
+                {allProjects.map(p => (
+                  <button key={p.id} onClick={() => {
+                    if (user) setActiveProject(user.id, p);
+                    setActiveProjectState(p);
+                    setShowSwitch(false);
+                    window.location.reload();
+                  }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 12px', background: p.id === activeProject.id ? 'var(--bg)' : 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13, color: 'var(--text)', fontWeight: p.id === activeProject.id ? 700 : 400 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
+                    {p.name}
+                    {p.id === activeProject.id && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-3)' }}>current</span>}
+                  </button>
+                ))}
+                <div style={{ borderTop: '1px solid var(--border)', padding: '6px 8px' }}>
+                  <Link href="/pm/projects" onClick={() => setShowSwitch(false)} style={{ display: 'block', fontSize: 12, color: 'var(--text-3)', textDecoration: 'none', padding: '4px', textAlign: 'center' }}>Manage projects →</Link>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
