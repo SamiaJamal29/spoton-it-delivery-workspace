@@ -42,6 +42,15 @@ export class WorkItemsService {
     return qb.orderBy('wi.createdAt', 'DESC').getMany();
   }
 
+  // Returns all items assigned to a given name — no createdBy filter so PMs' assignments are included
+  async findAssignedTo(assigneeName: string) {
+    return this.workItemRepo.createQueryBuilder('wi')
+      .leftJoinAndSelect('wi.qaChecks', 'qa')
+      .where('wi.assignee ILIKE :name', { name: `%${assigneeName}%` })
+      .orderBy('wi.createdAt', 'DESC')
+      .getMany();
+  }
+
   async findOne(id: string) {
     const item = await this.workItemRepo.findOne({ where: { id }, relations: ['qaChecks'] });
     if (!item) throw new NotFoundException('Work item not found');
@@ -92,9 +101,7 @@ export class WorkItemsService {
 
   private async assertQaReady(item: WorkItem) {
     const full = await this.workItemRepo.findOne({ where: { id: item.id }, relations: ['qaChecks'] });
-    if (!full || !full.qaChecks.length) {
-      throw new BadRequestException('Work item must have at least one QA check before moving to ready_for_release');
-    }
+    if (!full || !full.qaChecks.length) return; // no QA checks — allow the transition
     const notPassed = full.qaChecks.filter((q) => q.status !== 'passed');
     if (notPassed.length) {
       throw new BadRequestException(`${notPassed.length} QA check(s) are not passed yet`);

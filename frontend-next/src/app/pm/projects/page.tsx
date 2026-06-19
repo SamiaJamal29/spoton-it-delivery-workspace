@@ -6,9 +6,16 @@ import { api, Project, TeamMember, getProjects, saveProjects, getTeam, saveTeam,
 
 const COLORS = ['#5b57d6','#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
 const ROLES = ['Developer','Designer','QA Engineer','Product Manager','DevOps','Tech Lead','Analyst'];
+const AVATAR_PALETTE = ['#5b57d6','#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#0ea5e9','#a855f7'];
+
+type WorkspaceMember = { id: string; name: string; email: string; role: string };
 
 function initials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+}
+function avatarColor(id: string) {
+  let n = 0; for (const c of id) n += c.charCodeAt(0);
+  return AVATAR_PALETTE[n % AVATAR_PALETTE.length];
 }
 
 export default function ProjectsPage() {
@@ -16,6 +23,7 @@ export default function ProjectsPage() {
   const [userId, setUserId] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [teams, setTeams] = useState<Record<string, TeamMember[]>>({});
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [form, setForm] = useState({ name: '', color: COLORS[0], description: '' });
@@ -29,6 +37,9 @@ export default function ProjectsPage() {
       const t: Record<string, TeamMember[]> = {};
       projs.forEach(p => { t[p.id] = getTeam(u.id, p.id); });
       setTeams(t);
+      return api.members.list().catch(() => [] as WorkspaceMember[]);
+    }).then(mems => {
+      setWorkspaceMembers(mems);
     }).catch(() => router.push('/login'));
   }, []);
 
@@ -82,6 +93,15 @@ export default function ProjectsPage() {
 
   const removeMember = (projectId: string, memberId: string) => {
     const updated = (teams[projectId] ?? []).filter(m => m.id !== memberId);
+    setTeams(t => ({ ...t, [projectId]: updated }));
+    saveTeam(userId, projectId, updated);
+  };
+
+  const addWorkspaceMember = (projectId: string, wm: WorkspaceMember) => {
+    const current = teams[projectId] ?? [];
+    if (current.some(m => m.email === wm.email || m.name === wm.name)) return;
+    const member: TeamMember = { id: wm.id, name: wm.name, email: wm.email, role: wm.role };
+    const updated = [...current, member];
     setTeams(t => ({ ...t, [projectId]: updated }));
     saveTeam(userId, projectId, updated);
   };
@@ -208,14 +228,53 @@ export default function ProjectsPage() {
                     </div>
                   )}
 
-                  {/* Add member form */}
+                  {/* Workspace members — quick add */}
+                  {workspaceMembers.length > 0 && (() => {
+                    const current = teams[project.id] ?? [];
+                    const available = workspaceMembers.filter(wm => !current.some(m => m.name === wm.name || m.email === wm.email));
+                    return (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                          Workspace Members
+                        </div>
+                        {available.length === 0 ? (
+                          <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>All workspace members are already on this project.</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {available.map(wm => {
+                              const color = avatarColor(wm.id);
+                              return (
+                                <button key={wm.id} onClick={() => addWorkspaceMember(project.id, wm)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 24, background: 'var(--surface)', border: `1px solid var(--border)`, cursor: 'pointer', transition: 'all .15s' }}
+                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = color; (e.currentTarget as HTMLElement).style.background = color + '10'; }}
+                                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; }}
+                                >
+                                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: color, color: '#fff', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    {initials(wm.name)}
+                                  </div>
+                                  <div style={{ textAlign: 'left' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>{wm.name}</div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>{wm.role}</div>
+                                  </div>
+                                  <span style={{ fontSize: 14, color: color, marginLeft: 2 }}>+</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Manual add form */}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Add Custom Member</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <input className="form-input" style={{ fontSize: 13 }} placeholder="Full name *" value={memberForm[project.id]?.name ?? ''} onChange={e => setMf(project.id, 'name', e.target.value)} onKeyDown={e => e.key === 'Enter' && addMember(project.id)} />
                     <input className="form-input" style={{ fontSize: 13 }} placeholder="Email (optional)" value={memberForm[project.id]?.email ?? ''} onChange={e => setMf(project.id, 'email', e.target.value)} />
                     <select className="form-select" style={{ fontSize: 13 }} value={memberForm[project.id]?.role ?? ROLES[0]} onChange={e => setMf(project.id, 'role', e.target.value)}>
                       {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    <button className="btn btn-primary btn-sm" style={{ fontSize: 13 }} onClick={() => addMember(project.id)}>+ Add Member</button>
+                    <button className="btn btn-primary btn-sm" style={{ fontSize: 13 }} onClick={() => addMember(project.id)}>+ Add</button>
                   </div>
                 </div>
               )}

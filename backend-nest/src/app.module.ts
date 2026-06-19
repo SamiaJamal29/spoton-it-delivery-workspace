@@ -20,6 +20,9 @@ import { QaChecksController } from './qa-checks/qa-checks.controller';
 import { QaChecksService } from './qa-checks/qa-checks.service';
 import { ReleasesController } from './releases/releases.controller';
 import { ReleasesService } from './releases/releases.service';
+import { MessagesController } from './messages/messages.controller';
+import { MessagesService } from './messages/messages.service';
+import { Message } from './database/message.entity';
 
 @Module({
   imports: [
@@ -28,17 +31,27 @@ import { ReleasesService } from './releases/releases.service';
       secret: process.env.JWT_SECRET ?? 'dev-secret-change-me',
       signOptions: { expiresIn: '8h' },
     }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST ?? 'localhost',
-      port: Number(process.env.DB_PORT ?? 5432),
-      username: process.env.DB_USER ?? 'postgres',
-      password: process.env.DB_PASS ?? 'postgres',
-      database: process.env.DB_NAME ?? 'spoton_challenge',
-      entities: [WorkItem, QaCheck, Release, ScoreEvent, User],
-      synchronize: true,
-    }),
-    TypeOrmModule.forFeature([WorkItem, QaCheck, Release, ScoreEvent, User]),
+    TypeOrmModule.forRoot(
+      process.env.DATABASE_URL
+        ? {
+            type: 'postgres',
+            url: process.env.DATABASE_URL,
+            entities: [WorkItem, QaCheck, Release, ScoreEvent, User, Message],
+            synchronize: true,
+            ssl: { rejectUnauthorized: false },
+          }
+        : {
+            type: 'postgres',
+            host: process.env.DB_HOST ?? 'localhost',
+            port: Number(process.env.DB_PORT ?? 5432),
+            username: process.env.DB_USER ?? 'postgres',
+            password: process.env.DB_PASS ?? 'postgres',
+            database: process.env.DB_NAME ?? 'spoton_challenge',
+            entities: [WorkItem, QaCheck, Release, ScoreEvent, User, Message],
+            synchronize: true,
+          },
+    ),
+    TypeOrmModule.forFeature([WorkItem, QaCheck, Release, ScoreEvent, User, Message]),
   ],
   controllers: [
     HealthController,
@@ -48,6 +61,7 @@ import { ReleasesService } from './releases/releases.service';
     WorkItemsController,
     QaChecksController,
     ReleasesController,
+    MessagesController,
   ],
   providers: [
     AuthService,
@@ -57,6 +71,7 @@ import { ReleasesService } from './releases/releases.service';
     WorkItemsService,
     QaChecksService,
     ReleasesService,
+    MessagesService,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, ForbiddenException } from '@nestjs/common';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
@@ -51,5 +51,38 @@ export class AuthController {
   @Patch('profile')
   updateProfile(@Body() body: { name?: string; role?: string }, @CurrentUser() user: RequestUser) {
     return this.auth.updateProfile(user.id, body.name, body.role);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('members')
+  listMembers(@CurrentUser() user: RequestUser) {
+    if (user.role === 'Member') throw new ForbiddenException('Access denied');
+    return this.auth.listMembers();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('members')
+  createMember(@Body() body: { name: string; email: string; password: string; role?: string }, @CurrentUser() user: RequestUser) {
+    if (user.role === 'Member') throw new ForbiddenException('Access denied');
+    return this.auth.createMember(body.name, body.email, body.password, body.role ?? 'Member');
+  }
+
+  // Password reset — no auth required
+  @Post('forgot-password')
+  forgotPassword(@Body() body: { email: string }) {
+    return this.auth.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() body: { code: string; password: string }) {
+    return this.auth.resetPassword(body.code, body.password);
+  }
+
+  // PM can reset any member's password directly
+  @UseGuards(JwtAuthGuard)
+  @Patch('members/:id/password')
+  resetMemberPassword(@Param('id') id: string, @Body() body: { password: string }, @CurrentUser() user: RequestUser) {
+    if (user.role === 'Member') throw new ForbiddenException('Access denied');
+    return this.auth.resetMemberPassword(id, body.password);
   }
 }

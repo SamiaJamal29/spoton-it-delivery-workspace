@@ -144,6 +144,7 @@ export const api = {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
       return request<WorkItem[]>(`/work-items${qs}`);
     },
+    assignedToMe: () => request<WorkItem[]>('/work-items/assigned-to-me'),
     get: (id: string) => request<WorkItem>(`/work-items/${id}`),
     create: (body: Partial<WorkItem>) =>
       request<WorkItem>('/work-items', { method: 'POST', body: JSON.stringify(body) }),
@@ -161,6 +162,28 @@ export const api = {
       request<QaCheck>(`/qa-checks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     delete: (id: string) =>
       request<{ message: string }>(`/qa-checks/${id}`, { method: 'DELETE' }),
+  },
+
+  messages: {
+    threads: () => request<Array<{ partnerId: string; partnerName: string; lastMessage: { content: string; fromId: string; createdAt: string }; unread: number }>>('/messages/threads'),
+    conversation: (otherId: string) => request<Array<{ id: string; fromId: string; fromName: string; toId: string; toName: string; content: string; read: boolean; createdAt: string }>>(`/messages/conversation/${otherId}`),
+    send: (toId: string, toName: string, content: string) => request<{ id: string }>('/messages', { method: 'POST', body: JSON.stringify({ toId, toName, content }) }),
+    unread: () => request<number>('/messages/unread'),
+  },
+
+  members: {
+    list: () => request<Array<{ id: string; name: string; email: string; role: string; createdAt: string }>>('/auth/members'),
+    create: (body: { name: string; email: string; password: string; role?: string }) =>
+      request<{ id: string; name: string; email: string; role: string; createdAt: string }>('/auth/members', { method: 'POST', body: JSON.stringify(body) }),
+    resetPassword: (id: string, password: string) =>
+      request<{ message: string }>(`/auth/members/${id}/password`, { method: 'PATCH', body: JSON.stringify({ password }) }),
+  },
+
+  auth: {
+    forgotPassword: (email: string) =>
+      request<{ message: string; code: string | null; expiresIn?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: (code: string, password: string) =>
+      request<{ message: string }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ code, password }) }),
   },
 
   releases: {

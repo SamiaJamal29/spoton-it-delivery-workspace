@@ -38,7 +38,7 @@ export default function SignupPage() {
     try {
       const result = await api.register(form.name.trim(), form.email.trim(), form.password);
       saveToken(result.accessToken);
-      router.push('/pm/projects');
+      router.push('/member');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     } finally {

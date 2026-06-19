@@ -23,6 +23,11 @@ export class WorkItemsController {
     return this.service.findAll({ status, priority, assignee, search, myWork, projectId, userId: user?.id });
   }
 
+  @Get('assigned-to-me')
+  assignedToMe(@CurrentUser() user: RequestUser) {
+    return this.service.findAssignedTo(user.name);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
