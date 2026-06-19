@@ -26,6 +26,7 @@ export type WorkItem = {
   assignee: string;
   dueDate: string;
   createdBy: string;
+  projectId?: string;
   createdAt: string;
   updatedAt: string;
   qaChecks?: QaCheck[];
@@ -67,6 +68,45 @@ export function saveToken(token: string) {
 
 export function clearToken() {
   window.localStorage.removeItem('spoton_challenge_token');
+}
+
+// ── Project helpers (localStorage) ──────────────────────────────────────────
+
+export type Project = { id: string; name: string; color: string; description: string; createdAt: string };
+export type TeamMember = { id: string; name: string; email: string; role: string };
+
+export function getProjects(userId: string): Project[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(`spoton_projects_${userId}`) ?? '[]'); } catch { return []; }
+}
+export function saveProjects(userId: string, projects: Project[]) {
+  localStorage.setItem(`spoton_projects_${userId}`, JSON.stringify(projects));
+}
+
+export function getTeam(userId: string, projectId: string): TeamMember[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(`spoton_team_${userId}_${projectId}`) ?? '[]'); } catch { return []; }
+}
+export function saveTeam(userId: string, projectId: string, members: TeamMember[]) {
+  localStorage.setItem(`spoton_team_${userId}_${projectId}`, JSON.stringify(members));
+}
+
+export function getActiveProject(userId: string): Project | null {
+  if (typeof window === 'undefined') return null;
+  try { return JSON.parse(localStorage.getItem(`spoton_active_project_${userId}`) ?? 'null'); } catch { return null; }
+}
+export function setActiveProject(userId: string, project: Project | null) {
+  if (project) {
+    localStorage.setItem(`spoton_active_project_${userId}`, JSON.stringify(project));
+    localStorage.setItem('spoton_active_pid', project.id);
+  } else {
+    localStorage.removeItem(`spoton_active_project_${userId}`);
+    localStorage.removeItem('spoton_active_pid');
+  }
+}
+export function getActiveProjectId(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('spoton_active_pid') ?? '';
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

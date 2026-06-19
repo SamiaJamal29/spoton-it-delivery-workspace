@@ -47,6 +47,9 @@ export class WorkItem {
   @Column()
   createdBy: string;
 
+  @Column({ nullable: true })
+  projectId: string;
+
   @OneToMany(() => QaCheck, (qa) => qa.workItem, { cascade: true })
   qaChecks: QaCheck[];
 

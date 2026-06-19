@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       const result = await api.login(email, password);
       saveToken(result.accessToken);
-      router.push('/pm/dashboard');
+      router.push('/pm/projects');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

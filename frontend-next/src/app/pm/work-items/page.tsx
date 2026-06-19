@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api, WorkItem } from '@/lib/api';
+import { api, WorkItem, getActiveProjectId } from '@/lib/api';
 
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: '#ef4444', high: '#f97316', medium: '#eab308', low: '#94a3b8',
@@ -69,6 +69,8 @@ function WorkItemsInner() {
     if (statusFilter) params.status = statusFilter;
     if (priorityFilter) params.priority = priorityFilter;
     if (myWork) params.myWork = 'true';
+    const pid = getActiveProjectId();
+    if (pid) params.projectId = pid;
     api.workItems.list(params)
       .then(data => {
         // client-side project filter

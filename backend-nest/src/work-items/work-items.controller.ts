@@ -17,9 +17,10 @@ export class WorkItemsController {
     @Query('assignee') assignee?: string,
     @Query('search') search?: string,
     @Query('myWork') myWork?: string,
+    @Query('projectId') projectId?: string,
     @CurrentUser() user?: RequestUser,
   ) {
-    return this.service.findAll({ status, priority, assignee, search, myWork, userId: user?.id });
+    return this.service.findAll({ status, priority, assignee, search, myWork, projectId, userId: user?.id });
   }
 
   @Get(':id')

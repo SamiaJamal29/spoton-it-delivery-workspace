@@ -6,6 +6,7 @@ export class CreateWorkItemDto {
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   assignee?: string;
   dueDate?: string;
+  projectId?: string;
 }
 
 export class UpdateWorkItemDto {

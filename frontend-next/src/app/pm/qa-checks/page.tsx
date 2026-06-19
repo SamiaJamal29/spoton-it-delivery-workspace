@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, WorkItem, QaCheck } from '@/lib/api';
+import { api, WorkItem, QaCheck, getActiveProjectId } from '@/lib/api';
 
 type Row = { item: WorkItem; check: QaCheck };
 
@@ -14,7 +14,8 @@ export default function QaChecksPage() {
   const [loading, setLoading] = useState(true);
 
   const load = () => {
-    api.workItems.list()
+    const pid = getActiveProjectId();
+    api.workItems.list(pid ? { projectId: pid } : {})
       .then(items => {
         const all: Row[] = [];
         items.forEach(item => {

@@ -29,10 +29,11 @@ export class WorkItemsService {
     private readonly scoreRepo: Repository<ScoreEvent>,
   ) {}
 
-  async findAll(filters: { status?: string; priority?: string; assignee?: string; search?: string; myWork?: string; userId?: string }) {
+  async findAll(filters: { status?: string; priority?: string; assignee?: string; search?: string; myWork?: string; userId?: string; projectId?: string }) {
     const qb = this.workItemRepo.createQueryBuilder('wi').leftJoinAndSelect('wi.qaChecks', 'qa');
 
     if (filters.userId) qb.andWhere('wi.createdBy = :uid', { uid: filters.userId });
+    if (filters.projectId) qb.andWhere('wi.projectId = :pid', { pid: filters.projectId });
     if (filters.status) qb.andWhere('wi.status = :status', { status: filters.status });
     if (filters.priority) qb.andWhere('wi.priority = :priority', { priority: filters.priority });
     if (filters.assignee) qb.andWhere('wi.assignee ILIKE :assignee', { assignee: `%${filters.assignee}%` });

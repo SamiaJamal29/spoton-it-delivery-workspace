@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, WorkItem } from '@/lib/api';
+import { api, WorkItem, getActiveProjectId } from '@/lib/api';
 
 const STATUS_LABEL: Record<string, string> = {
   backlog: 'Backlog', planned: 'Planned', in_progress: 'In Progress',
@@ -44,7 +44,8 @@ export default function ReadinessPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.workItems.list()
+    const pid = getActiveProjectId();
+    api.workItems.list(pid ? { projectId: pid } : {})
       .then(data => setItems(data.filter(i => i.status !== 'released')))
       .catch(() => {})
       .finally(() => setLoading(false));

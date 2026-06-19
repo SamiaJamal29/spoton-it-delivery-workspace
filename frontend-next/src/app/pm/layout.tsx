@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-import { api, clearToken } from '@/lib/api';
+import { api, clearToken, getActiveProject, getActiveProjectId, Project } from '@/lib/api';
 import TaskPanel from '@/components/TaskPanel';
 
 type User = { id: string; name: string; email: string; role: string };
@@ -34,6 +34,7 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [activeProject, setActiveProjectState] = useState<Project | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
@@ -42,8 +43,12 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = localStorage.getItem('spoton_theme') as 'light' | 'dark' | null;
     if (saved) setTheme(saved);
-    api.me().then(setUser).catch(() => router.push('/login'));
-    api.workItems.list().then(items => {
+    api.me().then(u => {
+      setUser(u);
+      setActiveProjectState(getActiveProject(u.id));
+    }).catch(() => router.push('/login'));
+    const pid = getActiveProjectId();
+    api.workItems.list(pid ? { projectId: pid } : {}).then(items => {
       const qaTotal = items.reduce((n, i) => n + (i.qaChecks?.length ?? 0), 0);
       const readiness = items.filter(i => i.status !== 'released').length;
       setCounts({ workItems: items.length, qaChecks: qaTotal, readiness });
@@ -85,6 +90,19 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </Link>
+
+        {activeProject && (
+          <div style={{ margin: '0 12px 4px', padding: '8px 10px', borderRadius: 8, background: activeProject.color + '15', border: `1px solid ${activeProject.color}30` }}>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>Active Project</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: activeProject.color, flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeProject.name}</span>
+              </div>
+              <Link href="/pm/projects" style={{ fontSize: 10, color: activeProject.color, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Switch</Link>
+            </div>
+          </div>
+        )}
 
         <nav className="sidebar-nav">
           {NAV.map((item) => {

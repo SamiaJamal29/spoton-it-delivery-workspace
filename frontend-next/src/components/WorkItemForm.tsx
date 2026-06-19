@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, WorkItem } from '@/lib/api';
+import { api, WorkItem, TeamMember, getActiveProject, getTeam } from '@/lib/api';
 
 type Props = {
   initial?: Partial<WorkItem>;
@@ -20,8 +20,20 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
     assignee: initial.assignee ?? '',
     dueDate: initial.dueDate ?? '',
   });
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [projectId, setProjectId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.me().then(u => {
+      const proj = getActiveProject(u.id);
+      if (proj) {
+        setProjectId(proj.id);
+        setTeamMembers(getTeam(u.id, proj.id));
+      }
+    }).catch(() => {});
+  }, []);
 
   const set = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -31,7 +43,7 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
     setError('');
     try {
       if (mode === 'create') {
-        await api.workItems.create(form);
+        await api.workItems.create({ ...form, projectId: projectId || undefined });
         router.push('/pm/dashboard');
       } else {
         await api.workItems.update(id!, form);
@@ -89,12 +101,15 @@ export default function WorkItemForm({ initial = {}, mode, id }: Props) {
             <label className="form-label">Assignee</label>
             <select className="form-select" value={form.assignee} onChange={(e) => set('assignee', e.target.value)}>
               <option value="">Unassigned</option>
-              <option value="Maya Hassan">Maya Hassan</option>
-              <option value="Lina Farouk">Lina Farouk</option>
-              <option value="Omar Ahmed">Omar Ahmed</option>
-              <option value="Sara Khalil">Sara Khalil</option>
-              <option value="Ahmed Mostafa">Ahmed Mostafa</option>
+              {teamMembers.map(m => (
+                <option key={m.id} value={m.name}>{m.name} — {m.role}</option>
+              ))}
             </select>
+            {teamMembers.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
+                No team members yet. <a href="/pm/projects" style={{ color: 'var(--accent)' }}>Add people to your project →</a>
+              </div>
+            )}
           </div>
 
           <div className="form-group">

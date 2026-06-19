@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, WorkItem, ScoreSummary } from '@/lib/api';
+import { api, WorkItem, ScoreSummary, getActiveProjectId } from '@/lib/api';
 
 const STATUS_COLOR: Record<string, string> = {
   backlog: '#94a3b8', planned: '#3b82f6', in_progress: '#6366f1',
@@ -94,7 +94,7 @@ export default function DashboardPage() {
     kanbanRef.current.scrollLeft = scrollDrag.current.scrollLeft - (x - scrollDrag.current.startX) * 1.5;
   };
 
-  const loadItems = () => api.workItems.list().then(wi => setItems(wi)).catch(() => {});
+  const loadItems = () => { const pid = getActiveProjectId(); return api.workItems.list(pid ? { projectId: pid } : {}).then(wi => setItems(wi)).catch(() => {}); };
 
   // DnD handlers
   const onDragStart = (e: React.DragEvent, id: string) => {
@@ -125,7 +125,8 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    Promise.all([api.workItems.list(), api.score(), api.me()])
+    const pid = getActiveProjectId();
+    Promise.all([api.workItems.list(pid ? { projectId: pid } : {}), api.score(), api.me()])
       .then(([wi, sc, me]) => { setItems(wi); setScore(sc); setUser(me); })
       .catch(() => {})
       .finally(() => setLoading(false));

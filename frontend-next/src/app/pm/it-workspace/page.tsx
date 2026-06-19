@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { api, WorkItem } from '@/lib/api';
+import { api, WorkItem, getActiveProjectId } from '@/lib/api';
 
 type Column = { key: string; label: string; color: string; isCustom?: boolean };
 
@@ -79,8 +79,10 @@ export default function ItWorkspacePage() {
   const kanbanRef = useRef<HTMLDivElement>(null);
   const scrollDrag = useRef({ on: false, startX: 0, scrollLeft: 0 });
 
-  const load = () =>
-    api.workItems.list().then(setItems).catch(e => setError(e.message)).finally(() => setLoading(false));
+  const load = () => {
+    const pid = getActiveProjectId();
+    return api.workItems.list(pid ? { projectId: pid } : {}).then(setItems).catch(e => setError(e.message)).finally(() => setLoading(false));
+  };
 
   useEffect(() => { setCols(loadCols()); load(); }, []);
 
@@ -165,7 +167,8 @@ export default function ItWorkspacePage() {
     setQuickSaving(true);
     try {
       const status = DEFAULT_COLS.some(c => c.key === colKey) ? colKey as WorkItem['status'] : 'backlog';
-      const task = await api.workItems.create({ title: quickTitle.trim(), status } as Partial<WorkItem> & { status: WorkItem['status'] });
+      const pid = getActiveProjectId();
+      const task = await api.workItems.create({ title: quickTitle.trim(), status, ...(pid ? { projectId: pid } : {}) } as Partial<WorkItem> & { status: WorkItem['status'] });
       setItems(prev => [task, ...prev]);
       setQuickTitle(''); setAddingTo(null);
     } catch (err: unknown) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, Release, WorkItem } from '@/lib/api';
+import { api, Release, WorkItem, getActiveProjectId } from '@/lib/api';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: '#6b7280', scheduled: '#3b82f6', deployed: '#10b981', rolled_back: '#ef4444',
@@ -20,9 +20,10 @@ export default function ReleasesPage() {
   const load = async () => {
     setLoading(true);
     try {
+      const pid = getActiveProjectId();
       const [rels, items] = await Promise.all([
         api.releases.list(),
-        api.workItems.list({ status: 'ready_for_release' }),
+        api.workItems.list({ status: 'ready_for_release', ...(pid ? { projectId: pid } : {}) }),
       ]);
       setReleases(rels);
       setReadyItems(items);
