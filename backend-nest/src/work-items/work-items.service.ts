@@ -32,11 +32,11 @@ export class WorkItemsService {
   async findAll(filters: { status?: string; priority?: string; assignee?: string; search?: string; myWork?: string; userId?: string }) {
     const qb = this.workItemRepo.createQueryBuilder('wi').leftJoinAndSelect('wi.qaChecks', 'qa');
 
+    if (filters.userId) qb.andWhere('wi.createdBy = :uid', { uid: filters.userId });
     if (filters.status) qb.andWhere('wi.status = :status', { status: filters.status });
     if (filters.priority) qb.andWhere('wi.priority = :priority', { priority: filters.priority });
     if (filters.assignee) qb.andWhere('wi.assignee ILIKE :assignee', { assignee: `%${filters.assignee}%` });
     if (filters.search) qb.andWhere('(wi.title ILIKE :s OR wi.description ILIKE :s)', { s: `%${filters.search}%` });
-    if (filters.myWork === 'true' && filters.userId) qb.andWhere('wi.createdBy = :uid', { uid: filters.userId });
 
     return qb.orderBy('wi.createdAt', 'DESC').getMany();
   }

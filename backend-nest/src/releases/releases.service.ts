@@ -18,8 +18,8 @@ export class ReleasesService {
     private readonly scoreRepo: Repository<ScoreEvent>,
   ) {}
 
-  findAll() {
-    return this.releaseRepo.find({ relations: ['workItems'], order: { createdAt: 'DESC' } });
+  findAll(userId: string) {
+    return this.releaseRepo.find({ where: { createdBy: userId }, relations: ['workItems'], order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string) {

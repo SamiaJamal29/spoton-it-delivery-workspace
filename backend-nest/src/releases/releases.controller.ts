@@ -11,8 +11,8 @@ export class ReleasesController {
   constructor(private readonly service: ReleasesService) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(@CurrentUser() user: RequestUser) {
+    return this.service.findAll(user.id);
   }
 
   @Get(':id')
