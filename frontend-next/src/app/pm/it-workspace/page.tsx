@@ -15,10 +15,10 @@ type Column = {
 const DEFAULT_COLS: Column[] = [
   { key: 'backlog',           label: 'Backlog',           color: '#94a3b8' },
   { key: 'planned',           label: 'Planned',           color: '#3b82f6' },
-  { key: 'in_progress',       label: 'In Progress',       color: '#f59e0b' },
-  { key: 'qa',                label: 'QA',                color: '#8b5cf6' },
-  { key: 'ready_for_release', label: 'Ready for Release', color: '#10b981' },
-  { key: 'released',          label: 'Released',          color: '#059669' },
+  { key: 'in_progress',       label: 'In Progress',       color: '#6366f1' },
+  { key: 'qa',                label: 'QA',                color: '#a855f7' },
+  { key: 'ready_for_release', label: 'Ready for Release', color: '#0d9488' },
+  { key: 'released',          label: 'Released',          color: '#16a34a' },
 ];
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -50,14 +50,22 @@ function saveCols(cols: Column[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
 }
 
+function initials(name: string) {
+  return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+}
+
 export default function ItWorkspacePage() {
   const router = useRouter();
   const [items, setItems] = useState<WorkItem[]>([]);
   const [cols, setCols] = useState<Column[]>(DEFAULT_COLS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // DnD state
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number>(-1);
+  const [selected, setSelected] = useState<string | null>(null);
 
   // Add column form
   const [showAddCol, setShowAddCol] = useState(false);
@@ -70,7 +78,7 @@ export default function ItWorkspacePage() {
   const [quickSaving, setQuickSaving] = useState(false);
 
   const kanbanRef = useRef<HTMLDivElement>(null);
-  const drag = useRef({ on: false, startX: 0, scrollLeft: 0 });
+  const scrollDrag = useRef({ on: false, startX: 0, scrollLeft: 0 });
 
   const load = () =>
     api.workItems.list()
@@ -83,33 +91,43 @@ export default function ItWorkspacePage() {
     load();
   }, []);
 
-  // Scroll drag
+  // Horizontal scroll drag (only when not dragging a card)
   const onMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.kanban-card')) return;
     const el = kanbanRef.current;
     if (!el) return;
-    drag.current = { on: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
+    scrollDrag.current = { on: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft };
   };
-  const onMouseLeave = () => { drag.current.on = false; };
-  const onMouseUp = () => { drag.current.on = false; };
+  const onMouseLeave = () => { scrollDrag.current.on = false; };
+  const onMouseUp = () => { scrollDrag.current.on = false; };
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!drag.current.on || !kanbanRef.current || dragId) return;
+    if (!scrollDrag.current.on || !kanbanRef.current || dragId) return;
     e.preventDefault();
     const x = e.pageX - kanbanRef.current.offsetLeft;
-    kanbanRef.current.scrollLeft = drag.current.scrollLeft - (x - drag.current.startX) * 1.5;
+    kanbanRef.current.scrollLeft = scrollDrag.current.scrollLeft - (x - scrollDrag.current.startX) * 1.5;
   };
 
   // Card DnD
   const onDragStart = (e: React.DragEvent, id: string) => {
     setDragId(id);
+    setSelected(id);
     e.dataTransfer.effectAllowed = 'move';
+    // Set a transparent drag image so browser ghost is minimal
+    const el = e.currentTarget as HTMLElement;
+    e.dataTransfer.setDragImage(el, el.offsetWidth / 2, 20);
   };
-  const onDragOver = (e: React.DragEvent, col: string) => {
+
+  const onDragOver = (e: React.DragEvent, col: string, idx: number) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     setOverCol(col);
+    setDropIndex(idx);
   };
+
   const onDrop = async (e: React.DragEvent, targetKey: string) => {
     e.preventDefault();
     setOverCol(null);
+    setDropIndex(-1);
     if (!dragId) return;
     const item = items.find((i) => i.id === dragId);
     if (!item || item.status === targetKey) { setDragId(null); return; }
@@ -118,7 +136,7 @@ export default function ItWorkspacePage() {
     if (isNativeTarget) {
       const allowed = VALID_TRANSITIONS[item.status] ?? [];
       if (!allowed.includes(targetKey)) {
-        alert(`Cannot move from "${item.status.replace(/_/g,' ')}" to "${targetKey.replace(/_/g,' ')}"`);
+        alert(`Cannot move "${item.status.replace(/_/g,' ')}" → "${targetKey.replace(/_/g,' ')}"`);
         setDragId(null);
         return;
       }
@@ -131,12 +149,12 @@ export default function ItWorkspacePage() {
         load();
       }
     } else {
-      // Custom column — optimistic move (status stays the same in DB)
       setItems((prev) => prev.map((i) => i.id === dragId ? { ...i, _customCol: targetKey } as WorkItem & { _customCol: string } : i));
       setDragId(null);
     }
   };
-  const onDragEnd = () => { setDragId(null); setOverCol(null); };
+
+  const onDragEnd = () => { setDragId(null); setOverCol(null); setDropIndex(-1); };
 
   // Delete task
   const deleteTask = async (e: React.MouseEvent, id: string, title: string) => {
@@ -144,6 +162,7 @@ export default function ItWorkspacePage() {
     e.stopPropagation();
     if (!confirm(`Delete work item "${title}"?`)) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
+    if (selected === id) setSelected(null);
     await api.workItems.delete(id);
   };
 
@@ -203,11 +222,17 @@ export default function ItWorkspacePage() {
       <div className="workspace-header">
         <div>
           <h1 className="workspace-title">IT Delivery Workspace</h1>
-          <p className="workspace-subtitle">{items.length} work items · drag cards between columns</p>
+          <p className="workspace-subtitle">{items.length} work items · drag cards between columns to move them</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-outline" onClick={() => setShowAddCol(!showAddCol)}>+ Column</button>
-          <Link href="/pm/work-items/new" className="btn btn-primary">+ New Task</Link>
+          <button className="btn btn-outline" onClick={() => setShowAddCol(!showAddCol)}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Column
+          </button>
+          <Link href="/pm/work-items/new" className="btn btn-primary">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            New Work Item
+          </Link>
         </div>
       </div>
 
@@ -248,14 +273,19 @@ export default function ItWorkspacePage() {
         {cols.map((col) => {
           const colItems = byCol(col);
           const isOver = overCol === col.key;
+
           return (
             <div
               key={col.key}
               className={`kanban-col${isOver ? ' kanban-col-over' : ''}`}
-              style={isOver ? { borderColor: col.color } : undefined}
-              onDragOver={(e) => onDragOver(e, col.key)}
+              onDragOver={(e) => onDragOver(e, col.key, colItems.length)}
               onDrop={(e) => onDrop(e, col.key)}
-              onDragLeave={() => setOverCol(null)}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setOverCol(null);
+                  setDropIndex(-1);
+                }
+              }}
             >
               <div className="kanban-col-header" style={{ borderTopColor: col.color }}>
                 <span className="kanban-col-title" style={{ color: col.color }}>{col.label}</span>
@@ -267,46 +297,89 @@ export default function ItWorkspacePage() {
 
               <div className="kanban-cards">
                 {colItems.length === 0 && (
-                  <div className={`kanban-empty${isOver ? ' kanban-empty-over' : ''}`}>
-                    {isOver ? 'Drop here' : 'No tasks'}
+                  <div
+                    className={`kanban-empty${isOver ? ' kanban-empty-over' : ''}`}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOverCol(col.key); setDropIndex(0); }}
+                  >
+                    {isOver ? '↓ Drop here' : 'No items'}
                   </div>
                 )}
-                {colItems.map((item) => {
+
+                {colItems.map((item, idx) => {
                   const passed = item.qaChecks?.filter(q => q.status === 'passed').length ?? 0;
                   const total = item.qaChecks?.length ?? 0;
+                  const isDragging = dragId === item.id;
+                  const isSelected = selected === item.id;
+                  const showIndicator = isOver && dropIndex === idx && dragId !== item.id;
+
                   return (
-                    <div
-                      key={item.id}
-                      className={`kanban-card${dragId === item.id ? ' kanban-card-dragging' : ''}`}
-                      draggable
-                      onDragStart={(e) => onDragStart(e, item.id)}
-                      onDragEnd={onDragEnd}
-                    >
-                      <div className="kanban-card-top">
-                        <span className="kanban-type-icon" title={item.type}>{TYPE_ICON[item.type] ?? '•'}</span>
-                        <button className="kanban-delete-btn" title="Delete task" onClick={(e) => deleteTask(e, item.id, item.title)}>✕</button>
-                      </div>
-                      <Link href={`/pm/work-items/${item.id}`} className="kanban-card-title">{item.title}</Link>
-                      <div className="kanban-card-footer">
-                        <span className="priority-dot" style={{ background: PRIORITY_DOT[item.priority] }} title={item.priority} />
-                        <span className="kanban-card-priority">{item.priority}</span>
-                        {item.assignee && <span className="kanban-assignee">· {item.assignee}</span>}
-                        {total > 0 && (
-                          <span className="kanban-qa-badge" style={{ color: passed === total ? '#059669' : '#f59e0b' }}>
-                            ✓ {passed}/{total}
-                          </span>
-                        )}
+                    <div key={item.id}>
+                      {showIndicator && <div className="kanban-drop-indicator" />}
+                      <div
+                        className={`kanban-card${isDragging ? ' kanban-card-dragging' : ''}${isSelected && !isDragging ? ' kanban-card-selected' : ''}`}
+                        draggable
+                        onDragStart={(e) => onDragStart(e, item.id)}
+                        onDragEnd={onDragEnd}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOverCol(col.key); setDropIndex(idx); }}
+                        onClick={() => setSelected(selected === item.id ? null : item.id)}
+                      >
+                        <div className="kanban-card-top">
+                          <span className="kanban-type-icon" title={item.type}>{TYPE_ICON[item.type] ?? '•'}</span>
+                          <button
+                            className="kanban-delete-btn"
+                            title="Delete"
+                            onClick={(e) => deleteTask(e, item.id, item.title)}
+                          >✕</button>
+                        </div>
+                        <Link
+                          href={`/pm/work-items/${item.id}`}
+                          className="kanban-card-title"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {item.title}
+                        </Link>
+                        <div className="kanban-card-footer">
+                          <span className="priority-dot" style={{ background: PRIORITY_DOT[item.priority] }} title={item.priority} />
+                          <span className="kanban-card-priority">{item.priority}</span>
+                          {item.assignee && (
+                            <span style={{
+                              marginLeft: 'auto',
+                              width: 22, height: 22,
+                              borderRadius: '50%',
+                              background: 'var(--accent-soft)',
+                              color: 'var(--accent)',
+                              fontSize: 9,
+                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }} title={item.assignee}>
+                              {initials(item.assignee)}
+                            </span>
+                          )}
+                          {total > 0 && (
+                            <span className="kanban-qa-badge" style={{ color: passed === total ? '#059669' : '#f59e0b', marginLeft: item.assignee ? 4 : 'auto' }}>
+                              ✓ {passed}/{total}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Drop indicator at end of list */}
+                {isOver && dropIndex >= colItems.length && colItems.length > 0 && (
+                  <div className="kanban-drop-indicator" />
+                )}
 
                 {/* Quick add */}
                 {addingTo === col.key ? (
                   <div className="quick-add-form">
                     <input
                       className="quick-add-input"
-                      placeholder="Task title…"
+                      placeholder="Work item title…"
                       value={quickTitle}
                       onChange={(e) => setQuickTitle(e.target.value)}
                       onKeyDown={(e) => {
@@ -319,11 +392,14 @@ export default function ItWorkspacePage() {
                       <button className="btn btn-primary btn-sm" onClick={() => quickAdd(col.key)} disabled={quickSaving}>
                         {quickSaving ? '…' : 'Add'}
                       </button>
-                      <button className="btn btn-sm" onClick={() => { setAddingTo(null); setQuickTitle(''); }}>✕</button>
+                      <button className="btn btn-sm" onClick={() => { setAddingTo(null); setQuickTitle(''); }}>Cancel</button>
                     </div>
                   </div>
                 ) : (
-                  <button className="quick-add-btn" onClick={() => setAddingTo(col.key)}>+ Add work item</button>
+                  <button className="quick-add-btn" onClick={() => setAddingTo(col.key)}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Add work item
+                  </button>
                 )}
               </div>
             </div>
