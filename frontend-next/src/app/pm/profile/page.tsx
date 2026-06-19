@@ -143,17 +143,19 @@ export default function ProfilePage() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { label: 'Projects', value: projects.length, icon: '📁' },
-          { label: 'Work Items', value: workItems.length, icon: '📋' },
-          { label: 'In Progress', value: byStatus('in_progress'), icon: '⚡' },
-          { label: 'Released', value: byStatus('released'), icon: '🚀' },
+          { label: 'Projects',    value: projects.length,          color: '#5b57d6', bg: '#5b57d620', bar: '#5b57d6' },
+          { label: 'Work Items',  value: workItems.length,         color: '#3b82f6', bg: '#3b82f620', bar: '#3b82f6' },
+          { label: 'In Progress', value: byStatus('in_progress'),  color: '#8b5cf6', bg: '#8b5cf620', bar: '#8b5cf6' },
+          { label: 'Released',    value: byStatus('released'),     color: '#10b981', bg: '#10b98120', bar: '#10b981' },
         ].map(s => (
-          <div key={s.label} className="card" style={{ textAlign: 'center', padding: '14px 12px' }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)' }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{s.label}</div>
+          <div key={s.label} style={{ borderRadius: 14, background: s.bg, border: `1px solid ${s.color}30`, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: s.color, borderRadius: '14px 0 0 14px' }} />
+            <div style={{ paddingLeft: 8 }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginTop: 4, letterSpacing: '.02em' }}>{s.label}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -168,12 +170,12 @@ export default function ProfilePage() {
           {projects.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '12px 0' }}>No projects yet.</div>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {projects.map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, background: p.color + '10', border: `1px solid ${p.color}30`, borderLeft: `4px solid ${p.color}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{p.name}</div>
-                  {p.description && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{p.description}</div>}
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{p.name}</div>
+                  {p.description && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{p.description}</div>}
                 </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: p.color, background: p.color + '20', padding: '2px 7px', borderRadius: 20 }}>Active</span>
               </div>
             ))}
           </div>

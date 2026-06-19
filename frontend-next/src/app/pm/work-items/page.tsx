@@ -156,29 +156,49 @@ function WorkItemsInner() {
 
       {/* TABLE VIEW */}
       {!loading && items.length > 0 && view === 'table' && (
-        <div className="item-list">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
           {items.map((item) => (
-            <div key={item.id} className="item-row">
-              <div className="item-row-main">
-                <span className="item-row-title" style={{ cursor: 'pointer' }} onClick={() => openPanel(item.id)}>
-                  {item.title}
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', transition: 'box-shadow .15s' }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+              {/* Status dot */}
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[item.status], flexShrink: 0, display: 'inline-block' }} />
+
+              {/* ID */}
+              <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', background: 'var(--bg)', padding: '2px 6px', borderRadius: 5, flexShrink: 0 }}>
+                WI-{item.id.slice(-5).toUpperCase()}
+              </span>
+
+              {/* Title */}
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openPanel(item.id)}>
+                {item.title}
+              </span>
+
+              {/* Badges */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: STATUS_COLORS[item.status] + '20', color: STATUS_COLORS[item.status] }}>
+                  {STATUS_LABELS[item.status]}
                 </span>
-                <div className="item-row-meta">
-                  <span className="badge" style={{ background: STATUS_COLORS[item.status] }}>
-                    {STATUS_LABELS[item.status]}
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: PRIORITY_COLORS[item.priority] + '18', color: PRIORITY_COLORS[item.priority] }}>
+                  {item.priority}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--bg)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>{item.type}</span>
+                {item.assignee && (
+                  <span title={item.assignee} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {initials(item.assignee)}
                   </span>
-                  <span className="badge" style={{ background: PRIORITY_COLORS[item.priority] }}>
-                    {item.priority}
+                )}
+                {item.dueDate && (
+                  <span style={{ fontSize: 11, color: new Date(item.dueDate) < new Date() ? '#ef4444' : 'var(--text-3)', flexShrink: 0 }}>
+                    {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
-                  <span className="item-type">{item.type}</span>
-                  {item.assignee && <span className="item-assignee">👤 {item.assignee}</span>}
-                  {item.dueDate && <span className="item-due">📅 {item.dueDate}</span>}
-                </div>
+                )}
               </div>
-              <div className="item-row-actions">
-                <button className="btn btn-sm" onClick={() => openPanel(item.id)}>View</button>
-                <Link href={`/pm/work-items/${item.id}/edit`} className="btn btn-sm">Edit</Link>
-                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.title)}>Delete</button>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <Link href={`/pm/work-items/${item.id}/edit`} className="btn btn-sm" style={{ fontSize: 12 }}>Edit</Link>
+                <button className="btn btn-sm btn-danger" style={{ fontSize: 12 }} onClick={() => handleDelete(item.id, item.title)}>Delete</button>
               </div>
             </div>
           ))}
@@ -201,34 +221,37 @@ function WorkItemsInner() {
             const label = STATUS_LABELS[status];
             return (
               <div key={status} className="kanban-col">
-                <div className="kanban-col-header" style={{ borderTopColor: color }}>
-                  <span className="kanban-col-title" style={{ color }}>{label}</span>
+                <div className="kanban-col-header" style={{ background: color + '15', borderBottom: `1px solid ${color}30` }}>
+                  <div className="kanban-col-header-left">
+                    <span className="kanban-col-dot" style={{ background: color }} />
+                    <span className="kanban-col-title">{label}</span>
+                  </div>
                   <span className="kanban-col-count" style={{ background: color }}>{colItems.length}</span>
                 </div>
                 <div className="kanban-cards">
-                  {colItems.length === 0 && <div className="kanban-empty">No tasks</div>}
+                  {colItems.length === 0 && <div className="kanban-empty"><span className="kanban-empty-icon">📭</span><span>No tasks</span></div>}
                   {colItems.map(item => {
                     const passed = item.qaChecks?.filter(q => q.status === 'passed').length ?? 0;
                     const totalQa = item.qaChecks?.length ?? 0;
                     return (
                       <div key={item.id} className="kanban-card" style={{ cursor: 'pointer' }} onClick={() => openPanel(item.id)}>
-                        <div className="kanban-card-top">
-                          <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: 'var(--text-3)', background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>
-                            WI-{item.id.slice(-6).toUpperCase()}
-                          </span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: PRIORITY_COLORS[item.priority] + '22', color: PRIORITY_COLORS[item.priority] }}>
-                            {item.priority.toUpperCase()}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: 'var(--text)', marginBottom: 8 }}>{item.title}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-3)' }}>{item.type}</span>
-                          {item.assignee && (
-                            <span title={item.assignee} style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, marginLeft: 'auto' }}>
-                              {initials(item.assignee)}
-                            </span>
-                          )}
-                          {totalQa > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: passed === totalQa ? '#16a34a' : '#f59e0b' }}>✓ {passed}/{totalQa}</span>}
+                        <div className="kanban-card-bar" style={{ background: color }} />
+                        <div className="kanban-card-body">
+                          <div className="kanban-card-top">
+                            <span className="kanban-card-id">WI-{item.id.slice(-5).toUpperCase()}</span>
+                            <button className="kanban-delete-btn" onClick={e => { e.stopPropagation(); handleDelete(item.id, item.title); }}>×</button>
+                          </div>
+                          <Link href={`/pm/work-items/${item.id}`} className="kanban-card-title" onClick={e => e.stopPropagation()}>{item.title}</Link>
+                          <div className="kanban-card-footer">
+                            <span className="kanban-priority-pill" style={{ color: PRIORITY_COLORS[item.priority], background: PRIORITY_COLORS[item.priority] + '18' }}>{item.priority}</span>
+                            <span className="kanban-type-chip">{item.type}</span>
+                            {item.assignee && (
+                              <span className="kanban-assignee-avatar" style={{ background: color }} title={item.assignee}>{initials(item.assignee)}</span>
+                            )}
+                            {totalQa > 0 && (
+                              <span className="kanban-qa-badge" style={{ color: passed === totalQa ? '#059669' : '#d97706', background: passed === totalQa ? '#ecfdf5' : '#fffbeb' }}>✓ {passed}/{totalQa}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
