@@ -123,7 +123,7 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
             </svg>
             <input
               className="topbar-search"
-              placeholder="Search tasks…"
+              placeholder="Search work items…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={handleSearch}
@@ -149,7 +149,7 @@ export default function PmLayout({ children }: { children: React.ReactNode }) {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            New Task
+            New Work Item
           </Link>
         </header>
 
