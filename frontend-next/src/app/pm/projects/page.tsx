@@ -3,32 +3,40 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { api } from '@/lib/api';
+
 type Project = { id: string; name: string; color: string; description: string; createdAt: string };
 
-const STORAGE_KEY = 'spoton_projects';
 const COLORS = ['#5b57d6','#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4'];
 
-function loadProjects(): Project[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'); } catch { return []; }
+function storageKey(userId: string) { return `spoton_projects_${userId}`; }
+function loadProjects(userId: string): Project[] {
+  try { return JSON.parse(localStorage.getItem(storageKey(userId)) ?? '[]'); } catch { return []; }
 }
-function saveProjects(p: Project[]) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
+function saveProjects(userId: string, p: Project[]) { localStorage.setItem(storageKey(userId), JSON.stringify(p)); }
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const [userId, setUserId] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', color: COLORS[0], description: '' });
 
-  useEffect(() => { setProjects(loadProjects()); }, []);
+  useEffect(() => {
+    api.me().then(u => {
+      setUserId(u.id);
+      setProjects(loadProjects(u.id));
+    }).catch(() => {});
+  }, []);
 
   const set = (field: string, val: string) => setForm(f => ({ ...f, [field]: val }));
 
   const createProject = () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !userId) return;
     const p: Project = { id: `proj_${Date.now()}`, name: form.name.trim(), color: form.color, description: form.description.trim(), createdAt: new Date().toISOString() };
     const updated = [p, ...projects];
     setProjects(updated);
-    saveProjects(updated);
+    saveProjects(userId, updated);
     setForm({ name: '', color: COLORS[0], description: '' });
     setShowForm(false);
   };
@@ -37,7 +45,7 @@ export default function ProjectsPage() {
     if (!confirm('Delete this project?')) return;
     const updated = projects.filter(p => p.id !== id);
     setProjects(updated);
-    saveProjects(updated);
+    saveProjects(userId, updated);
   };
 
   return (
