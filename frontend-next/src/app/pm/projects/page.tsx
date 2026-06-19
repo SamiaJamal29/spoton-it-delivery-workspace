@@ -64,13 +64,16 @@ export default function ProjectsPage() {
   };
 
   const setMf = (projectId: string, field: string, val: string) => {
-    setMemberForm(f => ({ ...f, [projectId]: { ...f[projectId], [field]: val } }));
+    setMemberForm(f => {
+      const existing = f[projectId] ?? { name: '', email: '', role: ROLES[0] };
+      return { ...f, [projectId]: { ...existing, [field]: val } };
+    });
   };
 
   const addMember = (projectId: string) => {
     const mf = memberForm[projectId];
-    if (!mf?.name.trim()) return;
-    const member: TeamMember = { id: `mem_${Date.now()}`, name: mf.name.trim(), email: mf.email.trim(), role: mf.role };
+    if (!mf?.name?.trim()) return;
+    const member: TeamMember = { id: `mem_${Date.now()}`, name: mf.name.trim(), email: (mf.email ?? '').trim(), role: mf.role ?? ROLES[0] };
     const updated = [...(teams[projectId] ?? []), member];
     setTeams(t => ({ ...t, [projectId]: updated }));
     saveTeam(userId, projectId, updated);
