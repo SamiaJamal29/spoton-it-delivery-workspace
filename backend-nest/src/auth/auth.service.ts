@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -42,6 +42,15 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Invalid email or password');
 
     const payload: RequestUser = { id: user.id, name: user.name, email: user.email, role: user.role as RequestUser['role'] };
+    return { accessToken: this.jwt.sign(payload), user: payload };
+  }
+
+  async updateProfile(userId: string, name?: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('User not found');
+    if (name?.trim()) user.name = name.trim();
+    const saved = await this.users.save(user);
+    const payload: RequestUser = { id: saved.id, name: saved.name, email: saved.email, role: saved.role as RequestUser['role'] };
     return { accessToken: this.jwt.sign(payload), user: payload };
   }
 }

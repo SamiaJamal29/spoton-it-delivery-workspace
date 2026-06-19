@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, WorkItem, ScoreSummary, getActiveProjectId } from '@/lib/api';
+import { api, WorkItem, ScoreSummary, getActiveProjectId, getProjects, Project } from '@/lib/api';
 
 const STATUS_COLOR: Record<string, string> = {
   backlog: '#94a3b8', planned: '#3b82f6', in_progress: '#6366f1',
@@ -68,7 +68,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [items, setItems] = useState<WorkItem[]>([]);
   const [score, setScore] = useState<ScoreSummary | null>(null);
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'board' | 'analytics'>('board');
 
@@ -127,7 +128,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const pid = getActiveProjectId();
     Promise.all([api.workItems.list(pid ? { projectId: pid } : {}), api.score(), api.me()])
-      .then(([wi, sc, me]) => { setItems(wi); setScore(sc); setUser(me); })
+      .then(([wi, sc, me]) => { setItems(wi); setScore(sc); setUser(me); setProjects(getProjects(me.id)); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -387,6 +388,38 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Projects overview card */}
+          <div className="card" style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>My Projects</div>
+              <Link href="/pm/projects" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>Manage →</Link>
+            </div>
+            {projects.length === 0 ? (
+              <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '8px 0' }}>No projects yet. <Link href="/pm/projects" style={{ color: 'var(--accent)' }}>Create one →</Link></div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                {projects.map(p => {
+                  const pItems = items.filter(i => i.projectId === p.id);
+                  const done = pItems.filter(i => i.status === 'released').length;
+                  const pct = pItems.length ? Math.round(done / pItems.length * 100) : 0;
+                  return (
+                    <div key={p.id} style={{ padding: '14px 16px', borderRadius: 10, background: 'var(--bg)', border: `1px solid ${p.color}30`, borderLeft: `4px solid ${p.color}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{p.name}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>{pItems.length} work item{pItems.length !== 1 ? 's' : ''} · {done} released</div>
+                      <div style={{ height: 5, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: p.color, borderRadius: 99, transition: 'width .4s ease' }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{pct}% complete</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}

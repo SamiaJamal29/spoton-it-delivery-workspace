@@ -134,6 +134,9 @@ export const api = {
 
   me: () => request<LoginResponse['user']>('/auth/me'),
 
+  updateProfile: (name: string) =>
+    request<LoginResponse>('/auth/profile', { method: 'PATCH', body: JSON.stringify({ name }) }),
+
   score: () => request<ScoreSummary>('/score/me'),
 
   workItems: {
