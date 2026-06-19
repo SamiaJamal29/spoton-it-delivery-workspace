@@ -259,6 +259,7 @@ app.patch('/work-items/:id', requireAuth, async (c) => {
     if (!allowed.includes(body.status as string)) return c.json({ message: `Cannot move from "${current.status}" to "${body.status}". Allowed: ${allowed.join(', ') || 'none'}` }, 400);
     if (body.status === 'ready_for_release') {
       const { results: qcRows } = await c.env.DB.prepare('SELECT status FROM qa_checks WHERE work_item_id = ?').bind(id).all<Record<string, unknown>>();
+      if (!qcRows.length) return c.json({ message: 'Work item must have at least one QA check before moving to ready_for_release' }, 400);
       const notPassed = qcRows.filter(q => q.status !== 'passed');
       if (notPassed.length) return c.json({ message: `${notPassed.length} QA check(s) are not passed yet` }, 400);
     }

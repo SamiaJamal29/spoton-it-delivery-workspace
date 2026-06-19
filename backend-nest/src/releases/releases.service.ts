@@ -102,8 +102,8 @@ export class ReleasesService {
     try {
       const event = this.scoreRepo.create({ userId, action, entityId, points });
       await this.scoreRepo.save(event);
-    } catch {
-      // duplicate, skip
+    } catch (err: any) {
+      if (err?.code !== '23505') throw err;
     }
   }
 }

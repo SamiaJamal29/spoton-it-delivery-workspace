@@ -101,7 +101,9 @@ export class WorkItemsService {
 
   private async assertQaReady(item: WorkItem) {
     const full = await this.workItemRepo.findOne({ where: { id: item.id }, relations: ['qaChecks'] });
-    if (!full || !full.qaChecks.length) return; // no QA checks — allow the transition
+    if (!full || !full.qaChecks.length) {
+      throw new BadRequestException('Work item must have at least one QA check before moving to ready_for_release');
+    }
     const notPassed = full.qaChecks.filter((q) => q.status !== 'passed');
     if (notPassed.length) {
       throw new BadRequestException(`${notPassed.length} QA check(s) are not passed yet`);
@@ -112,8 +114,8 @@ export class WorkItemsService {
     try {
       const event = this.scoreRepo.create({ userId, action, entityId, points });
       await this.scoreRepo.save(event);
-    } catch {
-      // unique constraint violation = duplicate, silently skip
+    } catch (err: any) {
+      if (err?.code !== '23505') throw err; // only swallow unique constraint violations
     }
   }
 }
