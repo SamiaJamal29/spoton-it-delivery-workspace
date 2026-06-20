@@ -8,6 +8,51 @@
 ![Database](https://img.shields.io/badge/database-PostgreSQL-336791)
 ![AI](https://img.shields.io/badge/AI%20usage-disclose%20prompts-6f42c1)
 
+## Live Demo
+
+| | URL |
+|---|---|
+| **Frontend** | https://spoton-challenge-web.samiadev.workers.dev |
+| **API** | https://spoton-api.samiadev.workers.dev |
+| **GitHub** | https://github.com/SamiaJamal29/spoton-it-delivery-workspace |
+
+### Demo Accounts
+
+| Email | Password | Role |
+|---|---|---|
+| `sarah.pm@spoton.test` | `SpotOn@2025` | Project Manager |
+| `alex.dev@spoton.test` | `SpotOn@2025` | Member |
+| `pm@spoton.test` | `SpotOn@2025` | Project Manager |
+| `ahmed@spoton.test` | `SpotOn@2025` | Member |
+
+### Local Setup
+
+```bash
+# 1. Install all dependencies
+npm run install:all
+
+# 2. Start PostgreSQL
+docker compose up -d postgres
+
+# 3. Copy backend env
+cp backend-nest/.env.example backend-nest/.env
+# Edit .env: set DB_HOST=localhost, DB_USER=postgres, DB_PASS=postgres, DB_NAME=spoton_challenge, JWT_SECRET=any-string
+
+# 4. Start the API (port 3001)
+npm run dev:api
+
+# 5. Start the frontend (port 3000)
+npm run dev:web
+
+# 6. Register a new account at http://localhost:3000/signup
+#    (or use the demo accounts once seeded — see backend-nest/.env.example)
+
+# Run tests
+cd backend-nest && npm test   # 14 tests, all pass
+```
+
+---
+
 ## Table of Contents
 
 - [At a Glance](#at-a-glance)
@@ -147,9 +192,12 @@ http://localhost:3000
 
 ### 5. Login
 
+Register a new account at `/signup`, or use a pre-seeded demo account (see **Live Demo** section above).
+
 ```txt
-Email: intern@spoton.test
-Password: intern123
+Email: sarah.pm@spoton.test   (Project Manager)
+Email: alex.dev@spoton.test   (Member)
+Password for both: SpotOn@2025
 ```
 
 ## Existing Project Map
