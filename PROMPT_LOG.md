@@ -175,3 +175,29 @@ Fixed assertQaReady in NestJS and cf-api. Added class-validator decorators to al
 
 ### Manual Review
 Ran `npm test` in `backend-nest/` — all 7 tests pass. Manually confirmed the zero-QA-checks error message matches the spec language. Reviewed all three doc files for accuracy before committing.
+
+---
+
+## 2026-06-20 — Claude Code (claude-sonnet-4-6)
+
+### Goal
+Add ownership/authorization checks, status history (activity log), and expand test coverage.
+
+### Prompt Summary
+"Add ownership checks on work-item update (creator or assignee) and delete (creator only). Add a work_item_activities table to record every status transition with who changed it, from/to status, and timestamp. Expose GET /work-items/:id/activities. Show a Status History timeline on the work item detail page. Expand the test suite to cover ownership and activity log cases."
+
+### Output Summary
+Added `WorkItemActivity` entity and repo injection to NestJS. Updated `update()` to throw `ForbiddenException` if caller is not creator or assignee. Updated `remove()` to throw if not creator. Added `activityRepo.save` on every status change. Added `getActivities()` method. Added `GET :id/activities` endpoint. Updated `cf-api/src/index.ts` with identical ownership and activity log logic. Created the D1 `work_item_activities` table on the live database. Updated the frontend detail page to fetch and render a Status History timeline. Expanded the spec file from 7 to 14 tests covering ownership and activity log recording.
+
+### Files Changed
+- `backend-nest/src/database/work-item-activity.entity.ts`
+- `backend-nest/src/work-items/work-items.service.ts`
+- `backend-nest/src/work-items/work-items.controller.ts`
+- `backend-nest/src/work-items/work-items.service.spec.ts`
+- `backend-nest/src/app.module.ts`
+- `cf-api/src/index.ts`
+- `frontend-next/src/lib/api.ts`
+- `frontend-next/src/app/pm/work-items/[id]/page.tsx`
+
+### Manual Review
+Ran `npm test` — all 14 tests pass. Tested ownership enforcement via curl (non-owner PATCH returned 403 as expected). Verified activity log entries appear in the Status History UI after moving a work item's status. Confirmed the D1 live database has the `work_item_activities` table.

@@ -25,6 +25,7 @@ Beyond the spec: added a member Kanban board (drag-and-drop), PM chat / member m
 | `qa_checks` | N:1 to work_items — test title, expected/actual result, status, tester |
 | `releases` | M:N to work_items via join table — version, releaseDate, deploymentStatus |
 | `score_events` | Append-only — userId, action, entityId, points; unique(userId, action, entityId) |
+| `work_item_activities` | Append-only audit trail — workItemId, changedById, changedByName, fromStatus, toStatus, createdAt |
 | `messages` | Chat — fromId, fromName, toId, toName, content, read |
 
 ### Key constraints
@@ -61,6 +62,8 @@ GET    /qa-checks/work-item/:workItemId
 POST   /qa-checks
 PATCH  /qa-checks/:id
 DELETE /qa-checks/:id
+
+GET    /work-items/:id/activities
 
 GET    /releases               (filtered by createdBy = caller)
 GET    /releases/:id
@@ -164,7 +167,6 @@ With more time: deploy `backend-nest` to a Node.js host (Railway, Render) and ha
 | `synchronize: true` | TypeORM auto-syncs schema on start | Use `typeorm-migration` CLI to generate and run versioned migrations |
 | Projects in localStorage | Project list and team members are stored client-side | Move to DB with a `projects` table; enforce `projectId` FK server-side |
 | No email for password reset | Reset code returned in API response (dev mode) | Integrate SendGrid/Resend; remove code from response body |
-| No activity log | Only `updatedAt` timestamp on work items | Add `status_history` table with old/new status, changed_by, timestamp |
 | SQLite for live demo | D1 SQLite in cf-api | Map back to PostgreSQL once a Node.js host is set up |
 | No pagination | All lists return full result sets | Add cursor-based pagination on `/work-items` and `/messages` |
 
@@ -172,7 +174,6 @@ With more time: deploy `backend-nest` to a Node.js host (Railway, Render) and ha
 
 ## Unfinished Work
 
-- Activity log / audit trail for status transitions
 - Email delivery for password reset
 - Pagination on long lists
 - `backend-nest` deployed to a Node.js host (currently only `cf-api` is live)

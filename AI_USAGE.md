@@ -19,7 +19,7 @@ Claude Code was used heavily throughout this project. The AI generated initial c
 - **Backend:** Generated initial implementations of all endpoints; I directed the business rules (transition map, QA gate, score idempotency) and reviewed correctness
 - **Frontend:** Generated Next.js page components and layout; I specified UX requirements (Kanban board, chat interface, unread badge) and reviewed rendering
 - **Database:** Entity design and TypeORM relationships; I reviewed column types and constraints
-- **Tests:** Generated the spec file structure; I specified exactly which cases to cover (invalid transitions, zero QA checks, etc.)
+- **Tests:** Generated the spec file structure; I specified exactly which cases to cover (invalid transitions, zero QA checks, ownership enforcement, activity log recording) — 14 tests total
 - **Deployment:** Generated the Cloudflare Workers port (cf-api) and wrangler configuration after I decided to deploy to Cloudflare for free hosting
 - **Debugging:** Helped diagnose the `dragLeave` flicker in Kanban (solved with `enterCount` ref pattern)
 
