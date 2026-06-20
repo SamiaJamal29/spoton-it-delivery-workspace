@@ -34,7 +34,7 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-logo">
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px var(--accent-soft)' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 8, background: '#272c4d', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(39,44,77,.25)' }}>
             <div style={{ width: 13, height: 13, borderRadius: '50%', border: '3px solid rgba(255,255,255,.9)' }} />
           </div>
           <div>
