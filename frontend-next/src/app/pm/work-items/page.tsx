@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api, WorkItem, getActiveProjectId } from '@/lib/api';
+import { api, WorkItem, WorkItemStatus, getActiveProjectId } from '@/lib/api';
 
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: '#ef4444', high: '#f97316', medium: '#eab308', low: '#94a3b8',
@@ -22,6 +22,17 @@ function initials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
 }
 
+const NEXT_STATUSES: Record<string, string[]> = {
+  backlog: ['planned'],
+  planned: ['in_progress', 'backlog'],
+  in_progress: ['qa', 'planned'],
+  qa: ['ready_for_release', 'in_progress'],
+  ready_for_release: ['qa'],
+  released: [],
+};
+
+type QaCheck = { id: string; testTitle: string; status: 'pending' | 'passed' | 'failed'; notes?: string };
+
 function WorkItemsInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,6 +44,13 @@ function WorkItemsInner() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [myWork, setMyWork] = useState(false);
   const [view, setView] = useState<'table' | 'board'>('table');
+
+  // Inline expansion
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedItem, setExpandedItem] = useState<WorkItem | null>(null);
+  const [expandedQa, setExpandedQa] = useState<QaCheck[]>([]);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [statusError, setStatusError] = useState('');
 
   // Kanban scroll
   const kanbanRef = useRef<HTMLDivElement>(null);
@@ -86,7 +104,30 @@ function WorkItemsInner() {
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete "${title}"?`)) return;
     await api.workItems.delete(id);
+    if (expandedId === id) setExpandedId(null);
     load();
+  };
+
+  const toggleExpand = async (id: string) => {
+    if (expandedId === id) { setExpandedId(null); return; }
+    setExpandedId(id);
+    setExpandedLoading(true);
+    setStatusError('');
+    try {
+      const [wi, checks] = await Promise.all([api.workItems.get(id), api.qaChecks.listByWorkItem(id)]);
+      setExpandedItem(wi);
+      setExpandedQa(checks as QaCheck[]);
+    } finally { setExpandedLoading(false); }
+  };
+
+  const moveStatus = async (status: string) => {
+    if (!expandedItem) return;
+    setStatusError('');
+    try {
+      const updated = await api.workItems.update(expandedItem.id, { status: status as WorkItemStatus });
+      setExpandedItem(updated);
+      setItems(prev => prev.map(i => i.id === updated.id ? { ...i, status: updated.status } : i));
+    } catch (e: unknown) { setStatusError(e instanceof Error ? e.message : 'Failed'); }
   };
 
   const openPanel = (id: string) => router.push(`/pm/work-items?panel=${id}`);
@@ -156,52 +197,129 @@ function WorkItemsInner() {
 
       {/* TABLE VIEW */}
       {!loading && items.length > 0 && view === 'table' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {items.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', transition: 'box-shadow .15s' }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-              {/* Status dot */}
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[item.status], flexShrink: 0, display: 'inline-block' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+          {items.map((item) => {
+            const isOpen = expandedId === item.id;
+            return (
+              <div key={item.id} style={{ borderRadius: 8, background: 'var(--surface)', border: `1px solid ${isOpen ? 'var(--accent)' : 'var(--border)'}`, overflow: 'hidden', transition: 'border-color .15s' }}>
+                {/* Row */}
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', cursor: 'pointer' }}
+                  onClick={() => toggleExpand(item.id)}
+                >
+                  {/* Chevron */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, transition: 'transform .18s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
 
-              {/* ID */}
-              <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', background: 'var(--bg)', padding: '2px 6px', borderRadius: 5, flexShrink: 0 }}>
-                WI-{item.id.slice(-5).toUpperCase()}
-              </span>
+                  {/* Status dot */}
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: STATUS_COLORS[item.status], flexShrink: 0 }} />
 
-              {/* Title */}
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openPanel(item.id)}>
-                {item.title}
-              </span>
-
-              {/* Badges */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: STATUS_COLORS[item.status] + '20', color: STATUS_COLORS[item.status] }}>
-                  {STATUS_LABELS[item.status]}
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: PRIORITY_COLORS[item.priority] + '18', color: PRIORITY_COLORS[item.priority] }}>
-                  {item.priority}
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--bg)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>{item.type}</span>
-                {item.assignee && (
-                  <span title={item.assignee} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {initials(item.assignee)}
+                  {/* ID */}
+                  <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', background: 'var(--bg)', padding: '2px 6px', borderRadius: 5, flexShrink: 0 }}>
+                    WI-{item.id.slice(-5).toUpperCase()}
                   </span>
-                )}
-                {item.dueDate && (
-                  <span style={{ fontSize: 11, color: new Date(item.dueDate) < new Date() ? '#ef4444' : 'var(--text-3)', flexShrink: 0 }}>
-                    {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+
+                  {/* Title */}
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isOpen ? 'var(--accent)' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.title}
                   </span>
+
+                  {/* Badges */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: STATUS_COLORS[item.status] + '20', color: STATUS_COLORS[item.status] }}>
+                      {STATUS_LABELS[item.status]}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: PRIORITY_COLORS[item.priority] + '18', color: PRIORITY_COLORS[item.priority] }}>
+                      {item.priority}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--bg)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>{item.type}</span>
+                    {item.assignee && (
+                      <span title={item.assignee} style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {initials(item.assignee)}
+                      </span>
+                    )}
+                    {item.dueDate && (
+                      <span style={{ fontSize: 11, color: new Date(item.dueDate) < new Date() ? '#ef4444' : 'var(--text-3)', flexShrink: 0 }}>
+                        {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                    <Link href={`/pm/work-items/${item.id}/edit`} className="btn btn-sm" style={{ fontSize: 11 }} onClick={e => e.stopPropagation()}>Edit</Link>
+                    <button className="btn btn-sm btn-danger" style={{ fontSize: 11 }} onClick={e => { e.stopPropagation(); handleDelete(item.id, item.title); }}>Delete</button>
+                  </div>
+                </div>
+
+                {/* Inline details */}
+                {isOpen && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px', background: 'var(--surface-2)' }}>
+                    {expandedLoading ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: 13 }}>Loading…</div>
+                    ) : expandedItem && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {/* Description */}
+                        {expandedItem.description && (
+                          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>{expandedItem.description}</p>
+                        )}
+
+                        {/* Info row */}
+                        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                          {expandedItem.assignee && (
+                            <div>
+                              <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Assignee</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{expandedItem.assignee}</div>
+                            </div>
+                          )}
+                          {expandedItem.dueDate && (
+                            <div>
+                              <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Due Date</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: new Date(expandedItem.dueDate) < new Date() ? '#ef4444' : 'var(--text)' }}>
+                                {new Date(expandedItem.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
+                          )}
+                          {expandedQa.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>QA Checks</div>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {expandedQa.map(q => (
+                                  <span key={q.id} style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20,
+                                    background: q.status === 'passed' ? '#ecfdf5' : q.status === 'failed' ? '#fee2e2' : '#fff7ed',
+                                    color: q.status === 'passed' ? '#16a34a' : q.status === 'failed' ? '#ef4444' : '#f97316',
+                                  }} title={q.testTitle}>
+                                    {q.status === 'passed' ? '✓' : q.status === 'failed' ? '✕' : '○'} {q.testTitle.length > 28 ? q.testTitle.slice(0, 28) + '…' : q.testTitle}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Move to + actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          {(NEXT_STATUSES[expandedItem.status] ?? []).length > 0 && (
+                            <>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em' }}>Move to:</span>
+                              {(NEXT_STATUSES[expandedItem.status] ?? []).map(s => (
+                                <button key={s} onClick={() => moveStatus(s)} style={{
+                                  fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
+                                  border: `1.5px solid ${STATUS_COLORS[s]}`, background: STATUS_COLORS[s] + '18',
+                                  color: STATUS_COLORS[s], cursor: 'pointer',
+                                }}>{STATUS_LABELS[s]}</button>
+                              ))}
+                            </>
+                          )}
+                          {statusError && <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>{statusError}</span>}
+                          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                            <Link href={`/pm/work-items/${item.id}`} className="btn btn-sm btn-primary" style={{ fontSize: 12 }}>Full Details →</Link>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <Link href={`/pm/work-items/${item.id}/edit`} className="btn btn-sm" style={{ fontSize: 12 }}>Edit</Link>
-                <button className="btn btn-sm btn-danger" style={{ fontSize: 12 }} onClick={() => handleDelete(item.id, item.title)}>Delete</button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
